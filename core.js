@@ -471,8 +471,9 @@ function renderTx(){const d=draft,isNew=!d.id;const isCard=d.src.startsWith('c:'
  const accOpts=S.accounts.filter(a=>!a.archived||d.src==='a:'+a.id).map(a=>`<option value="a:${a.id}" ${d.src==='a:'+a.id?'selected':''}>${esc(a.name)}</option>`).join('');
  const cardOpts=cards.map(c=>`<option value="c:${c.id}" ${d.src==='c:'+c.id?'selected':''}>💳 ${esc(c.name)}</option>`).join('');
  const amt=parseMoney(d.amount);const n=Math.max(2,Math.min(120,parseInt(d.n)||2));
- let invHint='';if(d.src.startsWith('c:')){const c=byId('cards',d.src.slice(2));if(c)invHint=`<em>Entra na fatura de ${monthLabel(invoiceMonthFor(c,d.date||today()))}${d.repeat==='parcel'?' (1ª parcela)':''}</em>`}
+ let invHint='';if(d.src.startsWith('c:')){const c=byId('cards',d.src.slice(2));if(c)invHint=`<em id="tx_invhint">Entra na fatura de ${monthLabel(invoiceMonthFor(c,d.date||today()))}${d.repeat==='parcel'?' (1ª parcela)':''}</em>`}
  const title=isNew?{out:'Nova despesa',in:'Nova receita',transfer:'Nova transferência'}[d.kind]:'Editar lançamento';
+ const keepId=(document.activeElement&&$('#modal').contains(document.activeElement)&&document.activeElement.id)||'';const keepSc=$('#modal .sheet-bd')?.scrollTop||0;
  showModal(`<div class="sheet-hd"><h2>${title}</h2><button class="icon-btn" data-act="close" aria-label="Fechar">${I.x}</button></div><div class="sheet-bd">
  <div class="seg">${[['out','Despesa'],['in','Receita'],['transfer','Transferência']].map(([k,l])=>`<button class="${d.kind===k?'on '+k:''}" data-act="txkind" data-k="${k}">${l}</button>`).join('')}</div>
  <input id="tx_amt" class="amount-in ${d.kind==='in'?'pos':d.kind==='out'?'neg':''}" inputmode="decimal" placeholder="R$ 0,00" value="${esc(d.amount)}" autofocus aria-label="Valor">
@@ -485,11 +486,12 @@ function renderTx(){const d=draft,isNew=!d.id;const isCard=d.src.startsWith('c:'
  ${!d.src.startsWith('c:')?`<label class="sw"><span>${d.kind==='in'?'Já recebi':d.kind==='transfer'?'Já transferi':'Já paguei'}</span><input type="checkbox" id="tx_paid" ${d.paid?'checked':''}><i></i></label>`:''}
  ${isNew&&d.kind!=='transfer'?`<div class="fl"><span>Repetir</span><div class="seg">${[['none','Não repetir'],['parcel','Parcelado'],['fixed','Fixo mensal']].map(([k,l])=>`<button class="${d.repeat===k?'on':''}" data-act="txrep" data-k="${k}">${l}</button>`).join('')}</div></div>
  ${d.repeat==='parcel'?`<label class="fl"><span>Número de parcelas</span><input id="tx_n" type="number" min="2" max="120" value="${n}" data-inp="txn"><em id="parchint">${amt>0?`${n}× de ${moneyRaw(amt/n)} (valor digitado é o total)`:'O valor digitado é o total da compra'}</em></label>`:''}
- ${d.repeat==='fixed'?`<em class="muted" style="font-size:13px">Vai se repetir todo dia ${+String(d.date).slice(8,10)} e aparece em Recorrências.</em>`:''}`:''}
+ ${d.repeat==='fixed'?`<em id="tx_fixhint" class="muted" style="font-size:13px">Vai se repetir todo dia ${+String(d.date).slice(8,10)} e aparece em Recorrências.</em>`:''}`:''}
  ${!isNew&&d.orig.inst?`<div class="banner info" style="margin:0">Parcela ${d.orig.inst.n} de ${d.orig.inst.of}. A edição vale só para esta parcela.</div>`:''}
  ${!isNew&&d.orig.recurId?`<div class="banner info" style="margin:0">Lançamento de uma recorrência. Para mudar todos os meses, edite em Recorrências.</div>`:''}
  <label class="fl"><span>Observação</span><textarea id="tx_note" placeholder="Opcional">${esc(d.note)}</textarea></label>
- </div><div class="sheet-ft">${!isNew?`<button class="btn ghost danger" data-act="txdel" aria-label="Excluir">${I.trash}</button>`:''}<span class="sp"></span><button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="txsave">Salvar</button></div>`)}
+ </div><div class="sheet-ft">${!isNew?`<button class="btn ghost danger" data-act="txdel" aria-label="Excluir">${I.trash}</button>`:''}<span class="sp"></span><button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="txsave">Salvar</button></div>`);
+ if(keepSc){const b=$('#modal .sheet-bd');if(b)b.scrollTop=keepSc}if(keepId){const el=document.getElementById(keepId);if(el)try{el.focus({preventScroll:true})}catch(e){}}}
 async function saveTx(){syncDraft();const d=draft;const amt=r2(parseMoney(d.amount));if(!(amt>0))return toast('Informe o valor');if(!d.src)return toast('Cadastre uma conta primeiro');
  const[st,sid]=d.src.split(':');if(d.kind==='transfer'){if(st!=='a')return toast('Transferência é entre contas');if(!d.to||d.to===sid)return toast('Escolha a conta de destino')}
  if(d.kind!=='transfer'&&!d.cat&&S.categories.length&&!(await confirmBox('Salvar sem categoria?','Salvar assim')))return;
@@ -654,7 +656,9 @@ const A={
 const CHG={
  txsrc:el=>{ui.txsrc=el.value;render()},
  txsrc2:()=>{syncDraft();renderTx()},
- txdate:el=>{syncDraft();draft.paid=el.value<=today();renderTx()},
+ txdate:el=>{syncDraft();if(!/^\d{4}-\d{2}-\d{2}$/.test(el.value)||el.value<'1990')return;draft.paid=el.value<=today();const p=$('#tx_paid');if(p)p.checked=draft.paid;
+  const h=$('#tx_invhint');if(h&&draft.src.startsWith('c:')){const c=byId('cards',draft.src.slice(2));if(c)h.textContent='Entra na fatura de '+monthLabel(invoiceMonthFor(c,el.value))+(draft.repeat==='parcel'?' (1ª parcela)':'')}
+  const fx=$('#tx_fixhint');if(fx)fx.textContent='Vai se repetir todo dia '+(+el.value.slice(8,10))+' e aparece em Recorrências.'},
  range:el=>{ui.range=+el.value;render()},
  rp:el=>{ui.rp[el.dataset.k]=el.value;if(el.dataset.k==='kind')ui.rp.cat='';render()},
  cmp:el=>{ui.cmp=el.value;render()},
