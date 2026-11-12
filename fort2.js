@@ -92,7 +92,7 @@ function formSettle(s,preset={}){const ps=people();const opts=ps.map(p=>({v:p.em
 const ASSET_T=[{v:'imovel',l:'Imóvel',e:'🏠',k:'asset'},{v:'veiculo',l:'Veículo',e:'🚗',k:'asset'},{v:'bem',l:'Outro bem',e:'💎',k:'asset'},{v:'divida',l:'Dívida / financiamento (fora do app)',e:'🧾',k:'debt'},{v:'emprestimo',l:'Empréstimo pessoal',e:'🤝',k:'debt'}];
 const assetT=v=>ASSET_T.find(x=>x.v===v)||ASSET_T[2];
 function assetValAt(a,ym){const h=[...(a.hist||[])].filter(x=>x.ym<=ym).sort((x,y)=>x.ym<y.ym?-1:1);if(h.length)return +h[h.length-1].value||0;return ymOf(a.date||today())<=ym?(+a.value||0):0}
-function loanRemainingAt(l,ym){const n=+l.n||0;if(!l.first)return 0;const k=Math.max(+l.paidBefore||0,Math.min(n,mdiff(ymOf(l.first),ym)+1));const paidTx=S.tx.filter(t=>t.loanId===l.id&&t.paid&&ymOf(t.date)<=ym).length;const done=Math.min(n,Math.max(k,(+l.paidBefore||0)+paidTx));return r2(Math.max(0,n-done)*(+l.parcel||0))}
+function loanRemainingAt(l,ym){const n=+l.n||0;if(!l.first)return 0;const k=Math.max(+l.paidBefore||0,Math.min(n,mdiff(ymOf(l.first),ym)+1));const paidTx=S.tx.filter(t=>t.loanId===l.id&&t.paid&&ymOf(t.date)<=ym).length;const done=Math.min(n,Math.max(k,(+l.paidBefore||0)+paidTx));return loanSaldo(l,done)}
 function netWorthAt(ym){const accs=totalBalance(ym,false);const inv=portfolioAt(ym).bal;const assets=sum(S.assets.filter(a=>assetT(a.type).k==='asset'),a=>assetValAt(a,ym));
  const debts=sum(S.assets.filter(a=>assetT(a.type).k==='debt'),a=>assetValAt(a,ym));const loans=sum(S.loans,l=>loanRemainingAt(l,ym));const cards=ym===curYm()?sum(S.cards,c=>Math.max(0,invoice(c,ym).remaining)+Math.max(0,invoice(c,addMonths(ym,1)).remaining)):0;
  return{accs,inv,assets,debts,loans,cards,ativo:r2(Math.max(0,accs)+inv+assets),passivo:r2(debts+loans+cards+Math.max(0,-accs)),net:r2(accs+inv+assets-debts-loans-cards)}}
@@ -218,3 +218,42 @@ function homeLoans(){const list=S.loans.filter(l=>loanStats(l).rem>0);if(!list.l
  const tot=sum(list,l=>loanStats(l).saldo),mes=sum(list,l=>+l.parcel||0);const go=list.every(l=>l.kind==='emprestimo')?'emprestimos':'financiamentos';
  return sec('Empréstimos e financiamentos',go)+`<div class="list">${list.map(l=>{const s=loanStats(l);const pct=Math.round(s.pct*100);return `<button class="row" data-act="loan" data-id="${l.id}">${ib(l.kind==='financiamento'?'🏦':'🤝','#d9b25c')}<div class="t"><div class="sw" style="font-weight:inherit"><b>${esc(l.name)}</b><span class="pill ${pct>=75?'ok':pct>=40?'w':''}">${pct}% pago</span></div><div class="bar" style="--c:var(--in);height:9px"><i style="width:${s.pct*100}%"></i></div><small>${s.paidN} de ${s.n} parcelas · faltam ${s.rem}${s.next?' · próxima '+brDate(s.next.date):''}</small></div><div class="amt"><b>${money(l.parcel)}</b><small>deve ${money(s.saldo)}</small></div></button>`}).join('')}
  <div class="row"><div class="t"><b>Total</b><small>${money(mes)} por mês</small></div><div class="amt"><b class="neg">${money(tot)}</b><small>saldo devedor</small></div></div></div>`}
+
+/* ---------------- financiamento: cálculo pelas taxas do contrato ---------------- */
+let seriesCacheLoan={};
+function loanFields(kind){const fin=kind==='financiamento';return [
+ {k:'name',label:'Nome',req:1,ph:fin?'Ex.: Apartamento, Carro':'Ex.: Consignado'},{k:'inst',label:'Banco ou credor',ph:'Opcional'},
+ {k:'n',label:'Prazo total (número de parcelas)',type:'number',min:1,max:480,req:1},{k:'first',label:'Vencimento da 1ª parcela',type:'date',req:1},
+ {k:'paidBefore',label:'Meses amortizados (parcelas já pagas)',type:'number',min:0,hint:'Quantas parcelas já foram pagas até hoje (ou até a data do saldo informado)'},
+ {k:'parcel',label:'Valor da parcela',type:'money',hint:'Pode deixar em branco se for calcular pelas taxas'},
+ {k:'hc',type:'html',html:'<div class="fl" style="margin-top:6px"><span style="font-size:15px;color:var(--text)">Dados do contrato</span><em>Preencha com o que aparece no extrato do financiamento. O Fort calcula amortização, juros, seguro e taxa de cada parcela.</em></div>'},
+ {k:'calc',label:'Calcular a parcela pelas taxas do contrato',type:'toggle'},
+ {k:'sys',label:'Sistema de amortização',type:'select',options:[{v:'sac',l:'SAC (parcela diminui com o tempo)'},{v:'price',l:'Price (parcela fixa)'}]},
+ {k:'total',label:'Valor contratado (financiado)',type:'money'},
+ {k:'saldo',label:'Saldo devedor atual',type:'money',hint:'Do extrato, depois da última parcela paga. Se deixar em branco, o Fort estima a partir do valor contratado'},
+ {k:'jn',label:'Juros nominais vigentes (% ao ano)',type:'pct',ph:'Ex.: 10,49'},
+ {k:'je',label:'Juros efetivos (% ao ano)',type:'pct',ph:'Ex.: 11,02',hint:'Se deixar em branco, é calculado a partir dos nominais'},
+ {k:'jr',label:'Juros efetivos com relacionamento (% ao ano)',type:'pct',ph:'Opcional',hint:'Se preencher, esta é a taxa usada no cálculo'},
+ {k:'seguro',label:'Seguros por mês (MIP + DFI)',type:'money'},
+ {k:'taxa',label:'Taxa de administração por mês',type:'money'},
+ {k:'tr',label:'Corrigir o saldo pela TR todo mês',type:'toggle'},
+ {k:'accountId',label:'Conta de débito',type:'select',options:()=>accOptions()},{k:'categoryId',label:'Categoria',type:'select',options:()=>catOptions('out')}]}
+function loanRate(l){const ef=+l.jr>0?+l.jr:+l.je>0?+l.je:+l.jn>0?(Math.pow(1+(+l.jn)/1200,12)-1)*100:0;return Math.pow(1+ef/100,1/12)-1}
+function loanSchedule(l){const key=ver+'|'+ratesKey()+'|'+JSON.stringify([l.n,l.paidBefore,l.saldo,l.total,l.jn,l.je,l.jr,l.seguro,l.taxa,l.tr,l.sys,l.first]);const c=seriesCacheLoan[l.id||'_'];if(c&&c.key===key)return c;
+ const n=+l.n||0,k0=Math.min(n,Math.max(0,+l.paidBefore||0)),i=loanRate(l),tr=l.tr?(+curRates().tr||0)/100:0,seg=+l.seguro||0,tx=+l.taxa||0;
+ const step=(S,rem)=>{S=S*(1+tr);const j=S*i;let a;if(l.sys==='price'){const p=i>0?S*i/(1-Math.pow(1+i,-rem)):S/rem;a=p-j}else a=S/rem;return{S,j,a:Math.min(a,S)}};
+ let S;if(+l.saldo>0)S=+l.saldo;else{S=+l.total||0;for(let k=0;k<k0;k++){const r=step(S,n-k);S=r.S-r.a}}
+ const s0=r2(S);const rows=[];for(let k=k0;k<n;k++){const r=step(S,n-k);S=Math.max(0,r.S-r.a);rows.push({n:k+1,date:l.first?addMonthsDate(l.first,k):'',amort:r2(r.a),juros:r2(r.j),seguro:seg,taxa:tx,parcela:r2(r.a+r.j+seg+tx),saldo:r2(S)})}
+ const o={key,k0,s0,rows,i,totJuros:r2(sum(rows,x=>x.juros)),totPago:r2(sum(rows,x=>x.parcela))};seriesCacheLoan[l.id||'_']=o;return o}
+function loanAmt(l,N){if(!l.calc)return +l.parcel||0;const s=loanSchedule(l);const r=s.rows.find(x=>x.n===N);return r?r.parcela:(+l.parcel||0)}
+function loanSaldo(l,paidN){const n=+l.n||0;if(!l.calc)return r2(Math.max(0,n-paidN)*(+l.parcel||0));const s=loanSchedule(l);if(paidN<=s.k0)return s.s0;const r=s.rows[paidN-s.k0-1];return r?r.saldo:0}
+function loanIntroExtra(l,st){if(!l.calc)return '';const s=loanSchedule(l);const nx=s.rows.find(x=>x.n===st.paidN+1);const ef=(Math.pow(1+s.i,12)-1)*100;
+ return `<div class="lbrk mt">${nx?`<div class="sw"><span>Próxima parcela (${nx.n}ª)</span><b>${money(nx.parcela)}</b></div><div class="sw mut"><span>Amortização</span><span>${money(nx.amort)}</span></div><div class="sw mut"><span>Juros</span><span>${money(nx.juros)}</span></div><div class="sw mut"><span>Seguros</span><span>${money(nx.seguro)}</span></div><div class="sw mut"><span>Taxa de administração</span><span>${money(nx.taxa)}</span></div>`:'<div class="pos">Financiamento quitado 🎉</div>'}
+ <div class="sw mut" style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><span>Taxa usada</span><span>${pctf(s.i*100,4)} a.m. · ${pctf(ef)} a.a.</span></div><div class="sw mut"><span>Juros que ainda vai pagar</span><span>${money(s.totJuros)}</span></div><div class="sw mut"><span>Total que ainda vai pagar</span><span>${money(s.totPago)}</span></div>
+ <button type="button" class="btn sm mt" data-act="loansched" data-id="${l.id}">📋 Ver tabela de amortização</button></div>`}
+function showLoanSchedule(l){const s=loanSchedule(l);const rows=s.rows;const yrs=new Map();rows.forEach(r=>{const y=r.date.slice(0,4);const o=yrs.get(y)||{y,amort:0,juros:0,parc:0,saldo:0,cnt:0};o.amort+=r.amort;o.juros+=r.juros;o.parc+=r.parcela;o.saldo=r.saldo;o.cnt++;yrs.set(y,o)});
+ const t=`<div class="scroll-x"><table class="tb" style="font-size:13px"><tr><th>Parcela</th><th>Vencimento</th><th>Amortização</th><th>Juros</th><th>Seguro + taxa</th><th>Parcela</th><th>Saldo após</th></tr>${rows.slice(0,ui.schedAll?rows.length:24).map(r=>`<tr><td>${r.n}</td><td>${brDate(r.date)}</td><td>${money(r.amort)}</td><td>${money(r.juros)}</td><td>${money(r.seguro+r.taxa)}</td><td><b>${money(r.parcela)}</b></td><td>${money(r.saldo)}</td></tr>`).join('')}</table></div>
+ ${rows.length>24&&!ui.schedAll?`<button type="button" class="btn sm mt" data-act="schedall" data-id="${l.id}">Mostrar todas as ${rows.length} parcelas</button>`:''}
+ <div class="fl mt"><span>Resumo por ano</span></div><div class="scroll-x"><table class="tb" style="font-size:13px"><tr><th>Ano</th><th>Parcelas</th><th>Amortizado</th><th>Juros</th><th>Pago no ano</th><th>Saldo no fim</th></tr>${[...yrs.values()].map(o=>`<tr><td>${o.y}</td><td>${o.cnt}</td><td>${money(o.amort)}</td><td>${money(o.juros)}</td><td>${money(o.parc)}</td><td>${money(o.saldo)}</td></tr>`).join('')}</table></div>`;
+ openForm({title:'Tabela de amortização · '+l.name,intro:t,fields:[],saveLabel:'Fechar',onSave:()=>{}})}
+Object.assign(A,{loansched:d=>{ui.schedAll=false;showLoanSchedule(byId('loans',d.id))},schedall:d=>{ui.schedAll=true;showLoanSchedule(byId('loans',d.id))}});

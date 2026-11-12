@@ -363,3 +363,7 @@ body.light .auth{background:radial-gradient(ellipse at top,#dcf5e6 0%,#f4f6f8 60
 body.light .keypad button{color:var(--text);background:rgba(0,0,0,.06)}
 body.light #lock{background:radial-gradient(ellipse at top,#dcf5e6 0%,#f4f6f8 65%)}
 .home>div,.morecols>div{min-width:0}
+.lbrk{font-size:13.5px;display:flex;flex-direction:column;gap:3px}
+.lbrk .sw{font-weight:600}.lbrk .sw.mut{font-weight:500;color:var(--muted)}
+.sheet-bd>*{flex-shrink:0}
+@media(min-width:900px){.sheet:has(.tb){max-width:880px}}
