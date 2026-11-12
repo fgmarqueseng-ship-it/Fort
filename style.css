@@ -286,3 +286,17 @@ body.authmode::after{display:none}
 .pt .r,.pt th:last-child{text-align:right}
 .pr .pos{color:#13804f}.pr .neg{color:#c0392b}.pr .mut{color:#777}
 .pr-f{margin-top:18px;border-top:1px solid #ddd;padding-top:6px;color:#888;font-size:9.5px;text-align:center}
+
+/* ================= painel do Início ================= */
+.dash{display:grid;gap:12px;margin:0 0 18px}
+.dash.mob{margin-top:18px}
+@media(min-width:900px){.dash{grid-template-columns:1.1fr .9fr 1.1fr}}
+.dash .dh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+.dash .dh b{font-size:15px}.dash .dh small{color:var(--muted);font-size:12px}
+.dash .card.click{cursor:pointer}
+.donutrow{display:flex;align-items:center;gap:10px}
+.donutrow svg{width:150px!important;max-width:48%!important;margin:0!important}
+.dleg{flex:1;display:flex;flex-direction:column;gap:7px;font-size:13px;min-width:0}
+.dleg div{display:flex;align-items:center;gap:7px}
+.dleg i{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.dleg span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}

@@ -125,7 +125,7 @@ function deflator(ym){let d=1;const c=curYm();if(ym<=c)return 1;for(let m=addMon
 function portfolioAt(ym){let bal=0,contrib=0,net=0;for(const i of activeInvs()){const p=invAt(i,ym);bal+=p.bal;contrib+=p.contrib;net+=netOf(i,ym,p)}return{bal:r2(bal),contrib:r2(contrib),net:r2(net)}}
 
 /* ---------------- gráfico de várias linhas ---------------- */
-function multiLine(series,labels,opt={}){const W=680,H=270,pl=98,pb=30,pt=16,ih=H-pb-pt,iw=W-pl-18;const all=series.flatMap(s=>s.v);let mn=Math.min(0,...all),mx=Math.max(1,...all);const span=mx-mn||1;mx+=span*.06;
+function multiLine(series,labels,opt={}){const W=opt.W||680,H=opt.H||270,pl=opt.pl||98,pb=30,pt=16,ih=H-pb-pt,iw=W-pl-18;const all=series.flatMap(s=>s.v);let mn=Math.min(0,...all),mx=Math.max(1,...all);const span=mx-mn||1;mx+=span*.06;
  const n=labels.length;const x=k=>pl+(n<=1?iw/2:iw*k/(n-1)),y=v=>pt+ih*(mx-v)/(mx-mn);let g='';
  for(let k=0;k<=4;k++){const val=mn+(mx-mn)*k/4,yy=y(val);g+=`<line x1="${pl}" x2="${W-6}" y1="${yy}" y2="${yy}" stroke="#232a2f"/><text x="${pl-10}" y="${yy+4}" text-anchor="end">${compact(val)}</text>`}
  const step=Math.max(1,Math.ceil(n/(opt.maxLabels||8)));labels.forEach((l,k)=>{const lastGap=(n-1)%step;if((k%step===0&&!(lastGap&&lastGap<step*.6&&k===n-1-lastGap))||k===n-1)g+=`<text x="${x(k)}" y="${H-9}" text-anchor="middle">${esc(l)}</text>`});
@@ -216,6 +216,24 @@ function homeInvest(){const invs=activeInvs();const cur=curYm();
  if(!invs.length)return sec('Investimentos','investimentos')+`<div class="card"><div class="muted" style="font-size:14px">Acompanhe Tesouro, CDB, poupança e outros, com projeção de até 30 anos.</div><button class="btn primary sm mt" data-act="newinv">${I.plus} Novo investimento</button></div>`;
  const p=portfolioAt(cur),f=portfolioAt(addMonths(cur,120));
  return sec('Investimentos','investimentos')+`<div class="list"><button class="row" data-act="go" data-go="investimentos"><span class="ib" style="--c:#3ccf91">📈</span><div class="t"><b>${money(p.bal)}</b><small>Rendeu ${money(p.bal-p.contrib)} · ${invs.length} investimento${invs.length>1?'s':''}</small></div><div class="amt"><b class="pos">${money(f.bal)}</b><small>em 10 anos</small></div></button></div><div class="rates mini">${['selic','cdi','ipca'].map(k=>`<span><small>${k==='ipca'?'IPCA 12m':k.toUpperCase()==='SELIC'?'Selic':'CDI'}</small> <b>${pctf(curRates()[k])}</b></span>`).join('')}</div>`}
+
+/* ---------------- painel de gráficos do Início ---------------- */
+function miniBar(data){const W=380,H=210,pl=76,pb=26,pt=10,ih=H-pb-pt,iw=W-pl-6;const mx=niceMax(Math.max(1,...data.flatMap(d=>[d.inc||0,d.exp||0])));const gw=iw/data.length,bw=Math.min(18,gw/2.8);let g='';
+ for(let k=0;k<=3;k++){const y=pt+ih*(1-k/3);g+=`<line x1="${pl}" x2="${W-4}" y1="${y}" y2="${y}" stroke="#232a2f"/><text x="${pl-8}" y="${y+4}" text-anchor="end">${compact(mx*k/3)}</text>`}
+ data.forEach((d,k)=>{const cx=pl+gw*k+gw/2;[['inc','#3ccf91',-1],['exp','#f37a72',1]].forEach(([key,c,s])=>{const v=Math.max(0,d[key]||0),h=v/mx*ih;if(h>0)g+=`<rect x="${s<0?cx-bw-1.5:cx+1.5}" y="${pt+ih-h}" width="${bw}" height="${h}" rx="4" fill="${c}"><title>${esc(d.label)}: ${esc(moneyRaw(v))}</title></rect>`});g+=`<text x="${cx}" y="${H-7}" text-anchor="middle">${esc(d.label)}</text>`});
+ return `<svg viewBox="0 0 ${W} ${H}" class="chart">${g}</svg>`}
+function homeCharts(ym,cls){const cur=curYm();
+ const months=range(ym,6).map(m=>({label:monShort(m),...monthSummary(m)}));
+ const groups=byCat(monthExp(ym));const tot=sum(groups,g=>g.total);
+ const segs=groups.slice(0,6).map(g=>({v:g.total,color:g.cat.color})).concat(groups.length>6?[{v:sum(groups.slice(6),g=>g.total),color:'#8e99a3'}]:[]);
+ const pm=projMap();const pms=[];for(let k=-5;k<=6;k++)pms.push(addMonths(cur,k));
+ const patV=pms.map(m=>m<=cur?r2(totalBalance(m,false)+portfolioAt(m).bal):(pm.get(m)?.pat||0));
+ const invV=pms.map(m=>portfolioAt(m).bal);
+ return `<div class="dash ${cls}">
+ <div class="card"><div class="dh"><b>Receitas × despesas</b><small>6 meses</small></div><div class="legend"><span><i style="background:var(--in)"></i>Receitas</span><span><i style="background:var(--out)"></i>Despesas</span></div>${miniBar(months)}</div>
+ <div class="card click" data-act="go" data-go="analise"><div class="dh"><b>Despesas por categoria</b><small>${monthLabel(ym)}</small></div><div class="donutrow">${donut(segs,'GASTO',compact(tot))}<div class="dleg">${groups.slice(0,5).map(g=>`<div><i style="background:${esc(g.cat.color)}"></i><span>${esc(g.cat.name)}</span><b>${tot?Math.round(g.total/tot*100):0}%</b></div>`).join('')||'<span class="muted">Sem despesas neste mês</span>'}</div></div></div>
+ <div class="card click" data-act="go" data-go="projecoes"><div class="dh"><b>Patrimônio</b><small>6 meses atrás → 6 à frente</small></div>${multiLine([{name:'Patrimônio',color:'#3ccf91',v:patV,fill:true},{name:'Investimentos',color:'#9b8cff',v:invV,w:2}],pms.map(m=>m===cur?'hoje':monShort(m)),{maxLabels:5,W:380,H:210,pl:84})}</div>
+ </div>`}
 
 /* ---------------- projeção de longo prazo ---------------- */
 function avgVariable(){const cur=curYm();const past=range(addMonths(cur,-1),3);return r2(sum(past,m=>sum(monthExp(m).filter(t=>!t.recurId&&!t.loanId&&!t.inst),t=>t.amount))/3)}
