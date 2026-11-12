@@ -45,6 +45,9 @@ function makeDB(){
 // grava na hora (a fila original segurava gravações e elas sumiam numa recarga da nuvem)
 function enqueue(fn){return fn()}
 
+// mantém a inscrição de notificações atualizada no banco (o navegador pode renová-la)
+async function pushResync(){try{if((await pushState())!=='on')return;const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();if(s)await pushSave(s)}catch(e){}}
+
 /* ---------- telas de acesso ---------- */
 function authShell(inner){document.body.classList.add('authmode');$('#app').innerHTML=`<div class="auth"><div class="auth-card"><div class="auth-brand">${FORT_SVG}<div><b>${esc(APP.name)}</b><small>${esc(APP.slogan)}</small></div></div>${inner}</div></div>`}
 let authTab='in';
@@ -80,7 +83,7 @@ async function enter(session){if(entered)return;ME={id:session.user.id,email:(se
  const h=decodeURIComponent(location.hash.slice(1));if(V[h]&&h!=='loading')ui.view=h;
  mode='loading';render();DB=makeDB();subscribe();DB.start();
  const wait=setInterval(()=>{if(mode==='db'&&confirmed.size===COLS.length){clearInterval(wait);maybeRefreshRates();if(ui.view==='ajustes')loadMembers()}},500);
- if(ui.view==='ajustes')loadMembers()}
+ if(ui.view==='ajustes')loadMembers();refreshPushState();setTimeout(pushResync,4000)}
 
 (async()=>{
  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});

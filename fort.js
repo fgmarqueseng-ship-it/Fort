@@ -53,6 +53,43 @@ async function doInstall(){if(installEvt){installEvt.prompt();try{const r=await 
   :'<ol class="inst"><li>Use o <b>Chrome</b> ou o <b>Edge</b>.</li><li>Clique no ícone de instalar <b>⊕</b> no fim da barra de endereço (ou menu <b>⋮</b> → <b>Transmitir, salvar e compartilhar → Instalar página como app</b>).</li><li>Confirme em <b>Instalar</b>. O Fort ganha atalho na área de trabalho e abre em janela própria.</li></ol>';
  openForm({title:'Instalar o Fort',intro:`<div class="prof" style="margin-bottom:6px"><span class="fortlogo" style="width:52px;height:52px">${fortSvg()}</span><div class="t"><b>Fort como aplicativo</b><small class="muted">Ícone próprio, tela cheia e acesso rápido, no computador e no celular.</small></div></div>${steps}`,fields:[],saveLabel:'Entendi',onSave:()=>{}})}
 
+/* ---------------- vencimentos: destaque no app ---------------- */
+const dDiff=(a,b)=>Math.round((Date.parse(b+'T12:00:00')-Date.parse(a+'T12:00:00'))/864e5);
+function dueSoon(win=7){const td=today(),lim=addMonthsDate(td,0);const out=[];
+ for(const t of S.tx){if(t.paid||t.cardId||t.kind!=='out')continue;const d=dDiff(td,t.date);if(d<=win)out.push({d,t,name:txTitle(t),v:t.amount,kind:'tx'})}
+ const cur=curYm();for(const c of S.cards)for(const ym of [addMonths(cur,-1),cur,addMonths(cur,1)]){const iv=invoice(c,ym);if(!(iv.remaining>0.004))continue;const d=dDiff(td,iv.due);if(d<=win&&d>=-31)out.push({d,c,ym,name:'Fatura '+c.name,v:iv.remaining,kind:'fatura'})}
+ return out.sort((a,b)=>a.d-b.d||b.v-a.v)}
+const dueLabel=d=>d<0?(d===-1?'venceu ontem':`venceu há ${-d} dias`):d===0?'vence hoje':d===1?'vence amanhã':`em ${d} dias`;
+function dueCard(){const it=dueSoon(7);if(!it.length)return '';const over=it.filter(x=>x.d<0),tot=sum(it,x=>x.v);
+ return `<div class="card duec mb ${over.length?'late':''}"><div class="dh"><b>🔔 ${over.length?`${over.length} conta${over.length>1?'s':''} vencida${over.length>1?'s':''}`:'Vencimentos dos próximos 7 dias'}</b><a class="link" data-act="gotx" data-k="pagar">Ver tudo ›</a></div>
+ <div class="dlist">${it.slice(0,5).map(x=>`<button class="drow" ${x.kind==='fatura'?`data-act="card" data-id="${x.c.id}"`:`data-act="tx" data-id="${x.t.id}"`}><span class="pill ${x.d<0?'bad':x.d<=1?'w':''}">${dueLabel(x.d)}</span><span class="dn">${x.kind==='fatura'?'💳 ':''}${esc(x.name)}</span><b>${money(x.v)}</b></button>`).join('')}</div>
+ ${it.length>5?`<div class="muted" style="font-size:12.5px;margin-top:6px">+ ${it.length-5} outros · total ${money(tot)}</div>`:`<div class="muted" style="font-size:12.5px;margin-top:6px">Total ${money(tot)}</div>`}</div>`}
+
+/* ---------------- vencimentos: notificações no celular ---------------- */
+const b64u8=s=>{const p='='.repeat((4-s.length%4)%4);const b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...b].map(c=>c.charCodeAt(0)))};
+const ALERT_DAYS=[[0,'No dia'],[1,'1 dia antes'],[3,'3 dias antes'],[7,'7 dias antes']];
+const alertDays=()=>myPrefs().alertDays||[0,1,3];
+async function pushState(){try{if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))return isIOS()&&!isStandalone()?'ios':'unsupported';if(Notification.permission==='denied')return 'denied';const reg=await Promise.race([navigator.serviceWorker.ready,new Promise((_,rj)=>setTimeout(()=>rj(new Error('sw')),6000))]);const s=await reg.pushManager.getSubscription();return s?'on':'off'}catch(e){return 'unsupported'}}
+async function refreshPushState(){ui.push=await pushState();if(ui.view==='ajustes')render()}
+async function pushSave(sub){const j=sub.toJSON();const{error}=await SB.from('fort_push').upsert({endpoint:j.endpoint,sub:j,email:ME.email,days:alertDays(),updated_at:new Date().toISOString()});if(error)throw error}
+async function pushEnable(){if(!(window.FORT_CONFIG||{}).vapidPublic)return toast('Notificações ainda não configuradas');
+ try{const perm=await Notification.requestPermission();if(perm!=='granted'){toast('Permissão negada. Libere as notificações do site nas configurações do navegador.');return refreshPushState()}
+  const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u8(window.FORT_CONFIG.vapidPublic)});
+  await pushSave(sub);toast('Alertas ligados neste aparelho');}catch(e){console.warn(e);toast('Não foi possível ligar: '+(e.message||e))}refreshPushState()}
+async function pushDisable(){try{const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();if(s){await SB.from('fort_push').delete().eq('endpoint',s.endpoint);await s.unsubscribe()}toast('Alertas desligados neste aparelho')}catch(e){toast('Não foi possível desligar')}refreshPushState()}
+async function pushDays(k){let d=[...alertDays()];const n=+k;d=d.includes(n)?d.filter(x=>x!==n):[...d,n].sort((a,b)=>a-b);if(!d.length)d=[0];await savePrefs({alertDays:d});
+ try{const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();if(s)await SB.from('fort_push').update({days:d}).eq('endpoint',s.endpoint)}catch(e){}}
+async function pushTest(){toast('Enviando um alerta de teste…');const{data:id,error}=await SB.rpc('fort_test_alert');if(error){toast('Falhou: '+error.message);return}
+ setTimeout(async()=>{const{data,error:e2}=await SB.rpc('fort_alert_result',{rid:id});if(e2||!data){toast('Enviado. Se não chegar em 1 minuto, me avise.');return}
+  let j={};try{j=JSON.parse(data.content||'{}')}catch(x){}if(data.status_code===200&&j.sent>0)toast('Alerta enviado! Confira as notificações.');else if(data.status_code===200&&!j.sent)toast('Nenhum aparelho com alertas ligados.');else toast('Erro no envio ('+(data.status_code||'?')+'): '+(j.error||(j.errors||[]).join(' ')||data.error_msg||'').slice(0,140))},5000)}
+function alertsSection(){const st=ui.push;const d=alertDays();
+ const head=st==='on'?'<div class="pill ok mb">✓ Alertas ligados neste aparelho</div>':st==='denied'?'<div class="banner mb">As notificações deste site estão bloqueadas no navegador. Libere em Configurações do site → Notificações e volte aqui.</div>':st==='ios'?'<div class="banner info mb">No iPhone, os alertas só funcionam com o Fort instalado na tela de início. Instale e abra o Fort pelo ícone para ligar.</div>':st==='unsupported'?'<div class="banner mb">Este navegador não aceita notificações. Use o Chrome (Android/computador) ou o Fort instalado no iPhone.</div>':'';
+ return `${sec('Alertas de vencimento')}<div class="card" style="font-size:14px;line-height:1.5">${head}
+ <p class="muted" style="margin-bottom:10px">Todo dia às 8h o Fort avisa no celular as contas, faturas e receitas que vencem. Também aparece um destaque no Início.</p>
+ <div class="fl"><span>Avisar</span><div class="chips">${ALERT_DAYS.map(([k,l])=>`<button class="chip ${d.includes(k)?'on':''}" data-act="pushday" data-k="${k}">${l}</button>`).join('')}</div></div>
+ <div class="prof-b mt">${st==='on'?'<button class="btn sm" data-act="pushtest">Enviar alerta de teste</button><button class="btn sm ghost danger" data-act="pushoff">Desligar neste aparelho</button>':st==='off'?'<button class="btn primary" data-act="pushon">🔔 Ligar alertas neste aparelho</button>':st==null?'<span class="muted">Verificando…</span>':''}</div>
+ <div class="muted mt" style="font-size:12.5px">Ligue em cada aparelho onde quiser receber (celular e computador).</div></div>`}
+
 /* ---------------- taxas (Banco Central) ---------------- */
 const RATE_DEF={selic:15,cdi:14.9,ipca:4.5,tr:0.15};
 const RATE_L={selic:'Selic (% a.a.)',cdi:'CDI (% a.a.)',ipca:'IPCA (% em 12 meses)',tr:'TR (% ao mês)'};
@@ -363,10 +400,11 @@ V.ajustes=()=>{const p=myPrefs();const mem=ui.members;
  <div class="muted mt" style="font-size:13px">Foto, fundo e cor valem só para você; cada pessoa escolhe os seus. Os ícones das contas e cartões se trocam no cadastro de cada um.</div></div>
  ${sec('Preferências')}<div class="list"><label class="row sw" style="cursor:pointer"><span>Ocultar valores na tela</span><input type="checkbox" data-chg="hide" ${hideVals?'checked':''}><i></i></label><label class="row sw" style="cursor:pointer"><span>Marca d'água “$” no fundo</span><input type="checkbox" data-chg="mark" ${p.noMark?'':'checked'}><i></i></label><button class="row" data-act="rates"><div class="t"><b>Taxas e indicadores</b><small>Selic, CDI, IPCA e TR das projeções</small></div><span class="mut">${I.right}</span></button><button class="row" data-act="seedcats"><div class="t"><b>Recriar categorias padrão</b><small>Adiciona só as que estiverem faltando</small></div></button></div>
  </div><div>
+ ${alertsSection()}
  ${sec('Pessoas com acesso')}<div class="list">${mem?mem.map(m=>`<div class="row"><span class="me-av" style="width:34px;height:34px;font-size:13px">${esc(initials(m.email))}</span><div class="t"><b>${esc(m.email)}</b><small>${m.email.toLowerCase()===(ME?.email||'').toLowerCase()?'Você':'Vê e edita tudo'}</small></div>${m.email.toLowerCase()===(ME?.email||'').toLowerCase()?'':`<button class="btn sm ghost danger" data-act="memdel" data-k="${esc(m.email)}">Remover</button>`}</div>`).join(''):'<div class="empty">Carregando…</div>'}
  <form class="row" data-form="memadd" style="gap:8px"><input id="memmail" type="email" placeholder="E-mail da pessoa (ex.: da Thaís)" autocomplete="off"><button class="btn primary sm">Adicionar</button></form></div>
  <div class="muted mt" style="font-size:13px;line-height:1.5">Depois de adicionada, a pessoa abre o mesmo endereço do Fort, toca em “Criar acesso” com esse e-mail e passa a ver e lançar na mesma base.</div>
- ${sec('Instalar como aplicativo')}<div class="card" style="line-height:1.6;font-size:14px">${isStandalone()?'<div class="pill ok mb">✓ Você está usando o Fort instalado</div>':`<button class="btn primary mb" data-act="install">⬇️ Instalar o Fort neste aparelho</button>`}<b>Android (Chrome):</b> <span class="muted">menu ⋮ → “Adicionar à tela inicial” ou “Instalar app”.</span><br><b>iPhone (Safari):</b> <span class="muted">botão Compartilhar → “Adicionar à Tela de Início”.</span><br><span class="muted">O Fort abre em tela cheia com o ícone próprio, como um aplicativo.</span></div>
+ ${sec('Instalar como aplicativo')}<div class="card" style="line-height:1.6;font-size:14px">${isStandalone()?'<div class="pill ok mb">✓ Você está usando o Fort instalado</div>':`<button class="btn primary mb" style="display:flex;width:100%;justify-content:center" data-act="install">⬇️ Instalar o Fort neste aparelho</button>`}<b>Android (Chrome):</b> <span class="muted">menu ⋮ → “Adicionar à tela inicial” ou “Instalar app”.</span><br><b>iPhone (Safari):</b> <span class="muted">botão Compartilhar → “Adicionar à Tela de Início”.</span><br><span class="muted">O Fort abre em tela cheia com o ícone próprio, como um aplicativo.</span></div>
  ${sec('Conta')}<div class="list"><button class="row" data-act="go" data-go="importar-exportar"><div class="t"><b>Backup e planilhas</b><small>Exportar, importar e restaurar</small></div><span class="mut">${I.right}</span></button><button class="row" data-act="logout"><div class="t"><b class="neg">Sair</b><small>Desconectar este aparelho</small></div></button></div>
  <div class="muted mt center" style="font-size:12px">${esc(APP.name)} · ${esc(APP.slogan)}</div></div></div>`};
 async function loadMembers(){if(!SB)return;const{data,error}=await SB.from('fort_members').select('email').order('email');if(!error){ui.members=data||[];if(ui.view==='ajustes')render()}}
@@ -382,7 +420,7 @@ Object.assign(A,{
  calprev:()=>{ui.cal=addMonths(ui.cal,-1);ui.calDay='';render()},calnext:()=>{ui.cal=addMonths(ui.cal,1);ui.calDay='';render()},caltoday:()=>{ui.cal=curYm();ui.calDay=today();render()},
  calday:d=>{ui.calDay=d.k&&ui.calDay!==d.k?d.k:'';render()},
  pdfreport:()=>pdfReport(),pdfmonth:()=>pdfMonth(),pdfinv:()=>pdfInv(),pdfproj:()=>pdfProj(),
- install:()=>doInstall(),installhide:()=>{try{localStorage.setItem('fort.noInstall','1')}catch(e){}render()},
+ install:()=>doInstall(),pushon:()=>pushEnable(),pushoff:()=>pushDisable(),pushtest:()=>pushTest(),pushday:d=>pushDays(d.k),installhide:()=>{try{localStorage.setItem('fort.noInstall','1')}catch(e){}render()},
  photodel:()=>savePrefs({photo:''}),bgdel:()=>savePrefs({bg:''}),
  memdel:async d=>{if(!(await confirmBox(`Remover o acesso de ${d.k}?`,'Remover')))return;const{error}=await SB.from('fort_members').delete().eq('email',d.k);if(error)toast('Não foi possível remover');else{toast('Acesso removido');loadMembers()}}
 });
@@ -398,4 +436,4 @@ document.addEventListener('submit',async e=>{const f=e.target.dataset&&e.target.
  if(f==='pname'){e.preventDefault();savePrefs({name:($('#pname').value||'').trim()});toast('Nome salvo')}
  if(f==='memadd'){e.preventDefault();const em=($('#memmail').value||'').trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))return toast('Digite um e-mail válido');const{error}=await SB.from('fort_members').insert({email:em});if(error&&!/duplicate/i.test(error.message))toast('Não foi possível adicionar');else{toast('Acesso liberado para '+em);loadMembers()}}});
 // abrir Ajustes carrega a lista de membros
-window.addEventListener('hashchange',()=>{if(location.hash==='#ajustes')loadMembers()});
+window.addEventListener('hashchange',()=>{if(location.hash==='#ajustes'){loadMembers();refreshPushState()}});

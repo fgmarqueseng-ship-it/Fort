@@ -309,3 +309,12 @@ body.authmode::after{display:none}
 .instb .t{flex:1;min-width:0}.instb .t b{display:block;font-size:14px}.instb .t small{color:var(--muted);font-size:12.5px}
 ol.inst{padding-left:20px;line-height:1.7;font-size:14px;color:var(--text)}
 ol.inst li{margin:2px 0}
+
+/* ================= vencimentos ================= */
+.duec .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.duec.late{border-color:rgba(243,122,114,.45)}
+.dlist{display:flex;flex-direction:column}
+.drow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);text-align:left;width:100%}
+.drow:first-child{border-top:0}
+.drow .pill{min-width:96px;text-align:center}
+.drow .dn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}

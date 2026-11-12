@@ -248,7 +248,7 @@ V.inicio=()=>{const ym=ui.month,end=endOf(ym);const accs=activeAccs();
   ${homeInvest(ym)}
   ${budgetMini(ym)}
  </div>`;
- return header(monthLabel(ym).split(' ')[0]+' '+ym.slice(0,4),{actions:`${monthNav()}<button class="icon-btn mob avbtn" data-act="go" data-go="ajustes" aria-label="Perfil e ajustes">${meAvatar(40)}</button>`}).replace(/<h1>.*?<\/h1>/,'<h1 class="desk">Início</h1>')+homeGreeting()+installBanner()+onboarding()+homeCharts(ym,'desk')+`<div class="home">${L}${R}</div>`+homeCharts(ym,'mob')};
+ return header(monthLabel(ym).split(' ')[0]+' '+ym.slice(0,4),{actions:`${monthNav()}<button class="icon-btn mob avbtn" data-act="go" data-go="ajustes" aria-label="Perfil e ajustes">${meAvatar(40)}</button>`}).replace(/<h1>.*?<\/h1>/,'<h1 class="desk">Início</h1>')+homeGreeting()+installBanner()+onboarding()+dueCard()+homeCharts(ym,'desk')+`<div class="home">${L}${R}</div>`+homeCharts(ym,'mob')};
 function budgetMini(ym){if(!S.budgets.length)return '';const exp=byCat(monthExp(ym));const rows=S.budgets.map(b=>{const c=byId('categories',b.categoryId);if(!c)return '';const sp=exp.find(x=>x.id===b.categoryId)?.total||0;const p=b.amount?sp/b.amount:0;return {c,sp,b,p}}).filter(Boolean).sort((a,b)=>b.p-a.p).slice(0,4);
  return sec('Orçamento','orcamento')+`<div class="list">${rows.map(({c,sp,b,p})=>`<div class="row">${ib(c.emoji,c.color,'sm')}<div class="t"><b>${esc(c.name)}</b><div class="bar" style="--c:${p>1?'var(--out)':p>.8?'var(--warn)':'var(--in)'}"><i style="width:${Math.min(100,p*100)}%"></i></div></div><div class="amt"><b>${money(sp)}</b><small>de ${money(b.amount)}</small></div></div>`).join('')}</div>`}
 
