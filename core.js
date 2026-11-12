@@ -608,7 +608,7 @@ const A={
  gotx:d=>{ui.txf=d.k;ui.txq='';ui.txsrc='';go('transacoes')},
  mprev:()=>{ui.month=addMonths(ui.month,-1);ui.exp='';render()},mnext:()=>{ui.month=addMonths(ui.month,1);ui.exp='';render()},
  hide:()=>{hideVals=!hideVals;try{localStorage.setItem('fort.hide',hideVals?'1':'0')}catch(e){}render()},
- newtx:d=>{if(!S.accounts.length&&!S.cards.length){toast('Cadastre uma conta primeiro');return formAccount()}const p={};if(d.kind)p.kind=d.kind;if(d.card){p.src='c:'+d.card;p.kind='out'}openTx(null,p)},
+ newtx:async d=>{if(!S.accounts.length&&!S.cards.length){fabMenu(false);const k=await choiceBox('Antes do primeiro lançamento','Para lançar uma despesa ou receita, o Fort precisa saber de onde sai (ou para onde vai) o dinheiro. Traga seus dados do Bolso ou cadastre uma conta.',[['bkp','Restaurar backup do Bolso','primary'],['acc','Cadastrar uma conta'],['card','Cadastrar um cartão de crédito']]);if(k==='bkp')go('importar-exportar');else if(k==='acc')formAccount();else if(k==='card')formCard();return}const p={};if(d.kind)p.kind=d.kind;if(d.card){p.src='c:'+d.card;p.kind='out'}openTx(null,p)},
  tx:d=>{const t=byId('tx',d.id);if(t)openTx(t)},
  paid:d=>{const t=byId('tx',d.id);if(t)put('tx',{...t,paid:!t.paid})},
  close:()=>closeModal(),
