@@ -178,7 +178,7 @@ label:has(>.fileov){position:relative;overflow:hidden}
 .mt{margin-top:14px}.mb{margin-bottom:14px}
 
 /* ================= Fort: marca, perfil, fundo ================= */
-.fortlogo{background:none;padding:0;overflow:hidden;width:38px;height:38px;border-radius:11px;flex-shrink:0}
+.fortlogo{background:#0a0a0a;box-shadow:0 0 0 1px #1f2a22;padding:0;overflow:hidden;width:38px;height:38px;border-radius:11px;flex-shrink:0}
 .fortlogo svg{width:100%;height:100%;display:block}
 .brand{align-items:center;padding:4px 8px 18px}
 .brand .bn{font-size:21px;font-weight:800;letter-spacing:-.3px;line-height:1.05}
@@ -246,7 +246,7 @@ body.hasbg .rates .rt{background:rgba(22,26,29,.78)}
 
 /* ================= login ================= */
 body.authmode::after{display:none}
-.auth{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(ellipse at top,#231e44 0%,#0e1113 60%)}
+.auth{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(ellipse at top,#0f2e1c 0%,#0e1113 60%)}
 .auth-card{width:100%;max-width:400px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:26px 22px}
 .auth-brand{display:flex;align-items:center;gap:14px;margin-bottom:22px}
 .auth-brand svg{width:54px;height:54px;border-radius:14px}
@@ -264,7 +264,7 @@ body.authmode::after{display:none}
  body.printing #print{display:block}
 }
 .pr{font-family:Manrope,system-ui,sans-serif;color:#151a1e;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.pr-h{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #6b58ef;padding-bottom:10px;margin-bottom:14px;gap:20px}
+.pr-h{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #16a34a;padding-bottom:10px;margin-bottom:14px;gap:20px}
 .pr-b{display:flex;align-items:center;gap:10px}
 .pr-b svg{width:40px;height:40px;border-radius:10px}
 .pr-b b{font-size:22px;display:block;line-height:1}
@@ -272,14 +272,14 @@ body.authmode::after{display:none}
 .pr-m{text-align:right}
 .pr-m b{font-size:16px;display:block}
 .pr-m small{display:block;color:#555;font-size:10.5px;margin-top:2px}
-.pr h3{font-size:13.5px;margin:16px 0 6px;color:#3d2fb5}
+.pr h3{font-size:13.5px;margin:16px 0 6px;color:#15803d}
 .pr h4{font-size:12px;margin:10px 0 4px}
 .pk{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:6px}
 .pk>div{border:1px solid #e1e4e8;border-radius:8px;padding:7px 10px;break-inside:avoid}
 .pk small{display:block;color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .pk b{font-size:14px}
 .pt{width:100%;border-collapse:collapse;margin-bottom:4px}
-.pt th{background:#f1effe;color:#3d2fb5;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:5px 6px}
+.pt th{background:#ecfdf3;color:#15803d;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:5px 6px}
 .pt td{padding:4px 6px;border-bottom:1px solid #eceef1;vertical-align:top}
 .pt tr{break-inside:avoid}
 .pt tfoot td{font-weight:800;border-top:1.5px solid #999;border-bottom:0}

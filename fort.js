@@ -7,7 +7,7 @@ const APP={name:'Fort',slogan:'Finances on the right track'};
 let ME=null;          // {id,email} preenchido no login
 let SB=null;          // cliente Supabase
 
-const FORT_SVG_T=`<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="__ID__" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b3a8ff"/><stop offset="1" stop-color="#6b58ef"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#__ID__)"/><path d="M19 15h5v4h4v-4h5v4h4v-4h5v11H29v6h11v7H29v12h-10z" fill="#fff"/></svg>`;
+const FORT_SVG_T=`<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="__ID__" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4ade80"/><stop offset="1" stop-color="#15803d"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="#0a0a0a"/><path d="M19 15h5v4h4v-4h5v4h4v-4h5v11H29v6h11v7H29v12h-10z" fill="url(#__ID__)"/></svg>`;
 let svgN=0;const fortSvg=()=>FORT_SVG_T.replace(/__ID__/g,'fg'+(++svgN));
 Object.defineProperty(window,'FORT_SVG',{get:fortSvg});
 const brandMark=()=>`<span class="logo fortlogo">${fortSvg()}</span>`;
