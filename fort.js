@@ -36,6 +36,23 @@ function imgToDataUrl(file,maxW,maxH,q,square){return new Promise((res,rej)=>{co
  const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,sx,sy,sw,sh,0,0,w,h);
  let qq=q,u=cv.toDataURL('image/webp',qq);if(!u.startsWith('data:image/webp'))u=cv.toDataURL('image/jpeg',qq);while(u.length>450000&&qq>.35){qq-=.1;u=cv.toDataURL(u.startsWith('data:image/webp')?'image/webp':'image/jpeg',qq)}res(u)};im.onerror=rej;im.src=String(r.result)};r.onerror=rej;r.readAsDataURL(file)})}
 
+/* ---------------- instalar como app ---------------- */
+let installEvt=null;
+const isStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;scheduleRender()});
+window.addEventListener('appinstalled',()=>{installEvt=null;toast('Fort instalado!');scheduleRender()});
+const canOfferInstall=()=>!isStandalone();
+function installBtn(cls=''){return canOfferInstall()?`<button class="btn installbtn ${cls}" data-act="install">⬇️ Instalar o Fort</button>`:''}
+function installBanner(){if(!canOfferInstall())return '';try{if(localStorage.getItem('fort.noInstall')==='1')return ''}catch(e){}
+ return `<div class="card instb mob mb"><span class="fortlogo">${fortSvg()}</span><div class="t"><b>Instale o Fort no celular</b><small>Abre em tela cheia, com ícone próprio</small></div><button class="btn primary sm" data-act="install">Instalar</button><button class="icon-btn plain" style="width:30px;height:30px" data-act="installhide" aria-label="Dispensar">${I.x}</button></div>`}
+async function doInstall(){if(installEvt){installEvt.prompt();try{const r=await installEvt.userChoice;if(r.outcome==='accepted')toast('Instalando…')}catch(e){}installEvt=null;render();return}
+ const ios=isIOS(),android=/android/i.test(navigator.userAgent);
+ const steps=ios?'<ol class="inst"><li>Abra este endereço no <b>Safari</b>.</li><li>Toque no botão <b>Compartilhar</b> (quadrado com seta para cima).</li><li>Escolha <b>Adicionar à Tela de Início</b> e toque em <b>Adicionar</b>.</li></ol>'
+  :android?'<ol class="inst"><li>Abra este endereço no <b>Chrome</b>.</li><li>Toque no menu <b>⋮</b> (canto superior direito).</li><li>Escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</li></ol>'
+  :'<ol class="inst"><li>Use o <b>Chrome</b> ou o <b>Edge</b>.</li><li>Clique no ícone de instalar <b>⊕</b> no fim da barra de endereço (ou menu <b>⋮</b> → <b>Transmitir, salvar e compartilhar → Instalar página como app</b>).</li><li>Confirme em <b>Instalar</b>. O Fort ganha atalho na área de trabalho e abre em janela própria.</li></ol>';
+ openForm({title:'Instalar o Fort',intro:`<div class="prof" style="margin-bottom:6px"><span class="fortlogo" style="width:52px;height:52px">${fortSvg()}</span><div class="t"><b>Fort como aplicativo</b><small class="muted">Ícone próprio, tela cheia e acesso rápido, no computador e no celular.</small></div></div>${steps}`,fields:[],saveLabel:'Entendi',onSave:()=>{}})}
+
 /* ---------------- taxas (Banco Central) ---------------- */
 const RATE_DEF={selic:15,cdi:14.9,ipca:4.5,tr:0.15};
 const RATE_L={selic:'Selic (% a.a.)',cdi:'CDI (% a.a.)',ipca:'IPCA (% em 12 meses)',tr:'TR (% ao mês)'};
@@ -349,7 +366,7 @@ V.ajustes=()=>{const p=myPrefs();const mem=ui.members;
  ${sec('Pessoas com acesso')}<div class="list">${mem?mem.map(m=>`<div class="row"><span class="me-av" style="width:34px;height:34px;font-size:13px">${esc(initials(m.email))}</span><div class="t"><b>${esc(m.email)}</b><small>${m.email.toLowerCase()===(ME?.email||'').toLowerCase()?'Você':'Vê e edita tudo'}</small></div>${m.email.toLowerCase()===(ME?.email||'').toLowerCase()?'':`<button class="btn sm ghost danger" data-act="memdel" data-k="${esc(m.email)}">Remover</button>`}</div>`).join(''):'<div class="empty">Carregando…</div>'}
  <form class="row" data-form="memadd" style="gap:8px"><input id="memmail" type="email" placeholder="E-mail da pessoa (ex.: da Thaís)" autocomplete="off"><button class="btn primary sm">Adicionar</button></form></div>
  <div class="muted mt" style="font-size:13px;line-height:1.5">Depois de adicionada, a pessoa abre o mesmo endereço do Fort, toca em “Criar acesso” com esse e-mail e passa a ver e lançar na mesma base.</div>
- ${sec('Usar no celular')}<div class="card" style="line-height:1.6;font-size:14px"><b>Android (Chrome):</b> <span class="muted">menu ⋮ → “Adicionar à tela inicial” ou “Instalar app”.</span><br><b>iPhone (Safari):</b> <span class="muted">botão Compartilhar → “Adicionar à Tela de Início”.</span><br><span class="muted">O Fort abre em tela cheia com o ícone próprio, como um aplicativo.</span></div>
+ ${sec('Instalar como aplicativo')}<div class="card" style="line-height:1.6;font-size:14px">${isStandalone()?'<div class="pill ok mb">✓ Você está usando o Fort instalado</div>':`<button class="btn primary mb" data-act="install">⬇️ Instalar o Fort neste aparelho</button>`}<b>Android (Chrome):</b> <span class="muted">menu ⋮ → “Adicionar à tela inicial” ou “Instalar app”.</span><br><b>iPhone (Safari):</b> <span class="muted">botão Compartilhar → “Adicionar à Tela de Início”.</span><br><span class="muted">O Fort abre em tela cheia com o ícone próprio, como um aplicativo.</span></div>
  ${sec('Conta')}<div class="list"><button class="row" data-act="go" data-go="importar-exportar"><div class="t"><b>Backup e planilhas</b><small>Exportar, importar e restaurar</small></div><span class="mut">${I.right}</span></button><button class="row" data-act="logout"><div class="t"><b class="neg">Sair</b><small>Desconectar este aparelho</small></div></button></div>
  <div class="muted mt center" style="font-size:12px">${esc(APP.name)} · ${esc(APP.slogan)}</div></div></div>`};
 async function loadMembers(){if(!SB)return;const{data,error}=await SB.from('fort_members').select('email').order('email');if(!error){ui.members=data||[];if(ui.view==='ajustes')render()}}
@@ -365,6 +382,7 @@ Object.assign(A,{
  calprev:()=>{ui.cal=addMonths(ui.cal,-1);ui.calDay='';render()},calnext:()=>{ui.cal=addMonths(ui.cal,1);ui.calDay='';render()},caltoday:()=>{ui.cal=curYm();ui.calDay=today();render()},
  calday:d=>{ui.calDay=d.k&&ui.calDay!==d.k?d.k:'';render()},
  pdfreport:()=>pdfReport(),pdfmonth:()=>pdfMonth(),pdfinv:()=>pdfInv(),pdfproj:()=>pdfProj(),
+ install:()=>doInstall(),installhide:()=>{try{localStorage.setItem('fort.noInstall','1')}catch(e){}render()},
  photodel:()=>savePrefs({photo:''}),bgdel:()=>savePrefs({bg:''}),
  memdel:async d=>{if(!(await confirmBox(`Remover o acesso de ${d.k}?`,'Remover')))return;const{error}=await SB.from('fort_members').delete().eq('email',d.k);if(error)toast('Não foi possível remover');else{toast('Acesso removido');loadMembers()}}
 });

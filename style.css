@@ -300,3 +300,12 @@ body.authmode::after{display:none}
 .dleg div{display:flex;align-items:center;gap:7px}
 .dleg i{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .dleg span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+
+/* ================= instalar ================= */
+.installbtn{width:100%;justify-content:center;border-color:color-mix(in srgb,var(--in) 45%,var(--line));color:var(--in)}
+.sideinst{margin:0 4px 8px;width:auto;padding:8px 12px;font-size:13px}
+.instb{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.instb .fortlogo{width:40px;height:40px}
+.instb .t{flex:1;min-width:0}.instb .t b{display:block;font-size:14px}.instb .t small{color:var(--muted);font-size:12.5px}
+ol.inst{padding-left:20px;line-height:1.7;font-size:14px;color:var(--text)}
+ol.inst li{margin:2px 0}
