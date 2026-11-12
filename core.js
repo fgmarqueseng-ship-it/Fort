@@ -187,7 +187,7 @@ function header(title,o={}){return `<header class="hd">${o.back?`<button class="
 const sec=(title,go,extra='')=>`<div class="sec"><h2>${esc(title)}</h2>${go?`<a data-act="go" data-go="${go}">Ver tudo ›</a>`:extra}</div>`;
 const amtCls=t=>t.kind==='in'?'pos':(t.kind==='out'||t.kind==='invpay')?'neg':'mut';
 const signed=t=>(t.kind==='in'?'+ ':t.kind==='transfer'?'':'− ')+money(t.amount);
-function txRow(t,opt={}){const c=catOf(t);const bits=[];if(opt.date)bits.push(fmtDay(t.date));bits.push(srcName(t));if(t.desc&&t.desc!==c.name&&t.kind!=='transfer')bits.unshift(c.name);if(t.inst)bits.push(t.inst.n+'/'+t.inst.of);if(t.recurId)bits.push('fixa');
+function txRow(t,opt={}){const c=catOf(t);const bits=[];if(opt.date)bits.push(fmtDay(t.date));bits.push(srcName(t));if(t.desc&&t.desc!==c.name&&t.kind!=='transfer')bits.unshift(c.name);if(t.inst)bits.push(t.inst.n+'/'+t.inst.of);if(t.recurId)bits.push('fixa');if(t.cur&&t.cur!=='BRL')bits.push(curFmt(t.curAmt,t.cur));
  const chk=(!t.cardId&&t.kind!=='invpay')?`<span class="check ${t.paid?'on':''}" data-act="paid" data-id="${t.id}" title="${t.paid?'Pago':'Pendente'}">${I.check}</span>`:'';
  return `<div class="row click" data-act="tx" data-id="${t.id}">${ib(c.emoji,c.color)}<div class="t"><b>${esc(txTitle(t))}</b><small>${esc(bits.join(' · '))}</small></div><div class="amt"><b class="${amtCls(t)}">${signed(t)}</b>${!t.paid&&!t.cardId&&t.kind!=='invpay'?'<small class="warn">pendente</small>':''}</div>${opt.check!==false?chk:''}</div>`}
 
@@ -464,10 +464,10 @@ function openForm(cfg){curForm=cfg;const v=cfg.values||{};
 let draft=null;
 function openTx(t,preset={}){
  if(t&&t.kind==='invpay'){const c=byId('cards',t.cardId);return openForm({title:'Pagamento de fatura',values:t,fields:[{k:'amount',label:'Valor',type:'money',req:1},{k:'date',label:'Data',type:'date',req:1},{k:'accountId',label:'Pago com a conta',type:'select',options:()=>S.accounts.map(a=>({v:a.id,l:a.name}))}],intro:`<div class="muted">${esc(c?.name||'Cartão')} · fatura de ${monthLabel(t.inv)}</div>`,onSave:v=>put('tx',{...t,...v}),onDelete:()=>del('tx',t.id)})}
- if(t)draft={id:t.id,kind:t.kind,amount:fmtNum(t.amount),desc:t.desc||'',date:t.date,src:t.cardId?'c:'+t.cardId:'a:'+(t.accountId||''),to:t.toAccountId||'',cat:t.categoryId||'',tags:[...(t.tags||[])],paid:!!t.paid,repeat:'none',n:2,note:t.note||'',split:!!t.split,payer:t.payer||'',attach:[...(t.attach||[])],orig:t};
- else{const a=activeAccs()[0];draft={kind:'out',amount:'',desc:'',date:today(),src:a?'a:'+a.id:'',to:'',cat:'',tags:[],paid:true,repeat:'none',n:2,note:'',split:!!myPrefs().splitDefault,payer:ME?.email||'',attach:[],...preset}}
+ if(t)draft={id:t.id,kind:t.kind,amount:fmtNum(t.cur&&t.cur!=='BRL'?t.curAmt:t.amount),cur:t.cur||'BRL',rate:t.rate?String(t.rate).replace('.',','):'',iof:!!t.iof,desc:t.desc||'',date:t.date,src:t.cardId?'c:'+t.cardId:'a:'+(t.accountId||''),to:t.toAccountId||'',cat:t.categoryId||'',tags:[...(t.tags||[])],paid:!!t.paid,repeat:'none',n:2,note:t.note||'',split:!!t.split,payer:t.payer||'',attach:[...(t.attach||[])],orig:t};
+ else{const a=activeAccs()[0];draft={kind:'out',amount:'',cur:'BRL',rate:'',iof:false,desc:'',date:today(),src:a?'a:'+a.id:'',to:'',cat:'',tags:[],paid:true,repeat:'none',n:2,note:'',split:!!myPrefs().splitDefault,payer:ME?.email||'',attach:[],...preset}}
  renderTx()}
-function syncDraft(){const d=draft;if(!d)return;const g=id=>document.getElementById(id);if(g('tx_amt'))d.amount=g('tx_amt').value;if(g('tx_desc'))d.desc=g('tx_desc').value;if(g('tx_date'))d.date=g('tx_date').value||today();if(g('tx_src'))d.src=g('tx_src').value;if(g('tx_to'))d.to=g('tx_to').value;if(g('tx_paid'))d.paid=g('tx_paid').checked;if(g('tx_n'))d.n=g('tx_n').value;if(g('tx_note'))d.note=g('tx_note').value;if(g('tx_split'))d.split=g('tx_split').checked;if(g('tx_payer'))d.payer=g('tx_payer').value}
+function syncDraft(){const d=draft;if(!d)return;const g=id=>document.getElementById(id);if(g('tx_amt'))d.amount=g('tx_amt').value;if(g('tx_desc'))d.desc=g('tx_desc').value;if(g('tx_date'))d.date=g('tx_date').value||today();if(g('tx_src'))d.src=g('tx_src').value;if(g('tx_to'))d.to=g('tx_to').value;if(g('tx_paid'))d.paid=g('tx_paid').checked;if(g('tx_n'))d.n=g('tx_n').value;if(g('tx_note'))d.note=g('tx_note').value;if(g('tx_split'))d.split=g('tx_split').checked;if(g('tx_payer'))d.payer=g('tx_payer').value;if(g('tx_rate'))d.rate=g('tx_rate').value;if(g('tx_iof'))d.iof=g('tx_iof').checked}
 function renderTx(){const d=draft,isNew=!d.id;const isCard=d.src.startsWith('c:');const cards=d.kind==='out'?S.cards:[];
  if(isCard&&d.kind!=='out')d.src=activeAccs()[0]?'a:'+activeAccs()[0].id:'';
  const cats=S.categories.filter(c=>c.kind===(d.kind==='in'?'in':'out')).sort((a,b)=>a.name.localeCompare(b.name));
@@ -479,7 +479,7 @@ function renderTx(){const d=draft,isNew=!d.id;const isCard=d.src.startsWith('c:'
  const keepId=(document.activeElement&&$('#modal').contains(document.activeElement)&&document.activeElement.id)||'';const keepSc=$('#modal .sheet-bd')?.scrollTop||0;
  showModal(`<div class="sheet-hd"><h2>${title}</h2><button class="icon-btn" data-act="close" aria-label="Fechar">${I.x}</button></div><div class="sheet-bd">
  <div class="seg">${[['out','Despesa'],['in','Receita'],['transfer','Transferência']].map(([k,l])=>`<button class="${d.kind===k?'on '+k:''}" data-act="txkind" data-k="${k}">${l}</button>`).join('')}</div>
- <input id="tx_amt" class="amount-in ${d.kind==='in'?'pos':d.kind==='out'?'neg':''}" inputmode="decimal" placeholder="R$ 0,00" value="${esc(d.amount)}" autofocus aria-label="Valor">
+ <div class="amtrow">${curSelect(d)}<input id="tx_amt" class="amount-in ${d.kind==='in'?'pos':d.kind==='out'?'neg':''}" inputmode="decimal" placeholder="${curPh(d.cur)}" value="${esc(d.amount)}" autofocus aria-label="Valor" data-inp="txamt"></div>${fxBox(d)}
  ${d.kind!=='transfer'?`<label class="fl"><span>Descrição</span><input id="tx_desc" value="${esc(d.desc)}" placeholder="${d.kind==='in'?'Ex.: Salário':'Ex.: Mercado do mês'}"></label>`:''}
  <div class="grid2"><label class="fl"><span>Data</span><input id="tx_date" type="date" value="${esc(d.date)}" data-chg="txdate"></label>
  <label class="fl"><span>${d.kind==='transfer'?'De':d.kind==='out'?'Conta ou cartão':'Conta'}</span><select id="tx_src" data-chg="txsrc2">${accOpts}${cardOpts?`<optgroup label="Cartões">${cardOpts}</optgroup>`:''}</select>${invHint}</label></div>
@@ -497,11 +497,11 @@ function renderTx(){const d=draft,isNew=!d.id;const isCard=d.src.startsWith('c:'
  ${txAttachHtml(d)}
  </div><div class="sheet-ft">${!isNew?`<button class="btn ghost danger" data-act="txdel" aria-label="Excluir">${I.trash}</button>`:''}<span class="sp"></span><button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="txsave">Salvar</button></div>`);
  if(keepSc){const b=$('#modal .sheet-bd');if(b)b.scrollTop=keepSc}if(keepId){const el=document.getElementById(keepId);if(el)try{el.focus({preventScroll:true})}catch(e){}}}
-async function saveTx(){syncDraft();const d=draft;const amt=r2(parseMoney(d.amount));if(!(amt>0))return toast('Informe o valor');if(!d.src)return toast('Cadastre uma conta primeiro');
+async function saveTx(){syncDraft();const d=draft;const amt=txBRL(d);if(!(amt>0))return toast(d.cur&&d.cur!=='BRL'&&!(parseMoney(d.rate)>0)?'Aguarde a cotação ou informe-a':'Informe o valor');if(!d.src)return toast('Cadastre uma conta primeiro');
  const[st,sid]=d.src.split(':');if(d.kind==='transfer'){if(st!=='a')return toast('Transferência é entre contas');if(!d.to||d.to===sid)return toast('Escolha a conta de destino')}
  if(d.kind!=='transfer'&&!d.cat){const rc=ruleCat(d.desc,d.kind);if(rc)d.cat=rc}
  if(d.kind!=='transfer'&&!d.cat&&S.categories.length&&!(await confirmBox('Salvar sem categoria?','Salvar assim')))return;
- const base={kind:d.kind,desc:d.kind==='transfer'?'Transferência':d.desc.trim(),categoryId:d.kind==='transfer'?null:(d.cat||null),tags:d.kind==='transfer'?[]:d.tags,note:d.note.trim(),split:d.kind==='transfer'?false:!!d.split,payer:d.payer||ME?.email||'',attach:d.attach||[]};
+ const base={kind:d.kind,desc:d.kind==='transfer'?'Transferência':d.desc.trim(),categoryId:d.kind==='transfer'?null:(d.cat||null),tags:d.kind==='transfer'?[]:d.tags,note:d.note.trim(),split:d.kind==='transfer'?false:!!d.split,payer:d.payer||ME?.email||'',attach:d.attach||[],...fxFields(d)};
  const setSrc=(t,date)=>{if(st==='c'){const c=byId('cards',sid);t.cardId=sid;t.accountId=null;t.inv=invoiceMonthFor(c,date);t.paid=true}else{t.accountId=sid;t.cardId=null;t.inv=null}t.toAccountId=d.kind==='transfer'?d.to:null;return t};
  if(d.id){const o=d.orig;put('tx',setSrc({...o,...base,amount:amt,date:d.date,purchaseDate:o.inst?o.purchaseDate:d.date,paid:d.paid},d.date));closeModal();return toast('Lançamento atualizado')}
  if(d.repeat==='parcel'&&d.kind!=='transfer'){const n=Math.max(2,Math.min(120,parseInt(d.n)||2));const g=uid();const per=Math.floor(amt/n*100)/100;

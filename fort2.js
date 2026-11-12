@@ -276,3 +276,37 @@ function odCard(){const td=today(),cur=curYm();const rows=[];
 Object.assign(A,{odpost:async d=>{const a=byId('accounts',d.id);if(!a)return;const c=odCost(a,d.k);let cat=S.categories.find(x=>x.kind==='out'&&/juros|tarifa/.test(norm(x.name)));if(!cat){cat={id:uid(),kind:'out',name:'Juros e tarifas',emoji:'🧾',color:'#8e99a3'};put('categories',cat)}
  openForm({title:'Lançar juros do cheque especial',intro:`<div class="muted" style="font-size:14px">Estimativa para ${monthLabel(d.k).toLowerCase()}: juros ${money(c.juros)} + IOF ${money(c.iof)}. Ajuste o valor se o extrato do banco mostrar diferente.</div>`,values:{amount:c.total,date:dateIn(addMonths(d.k,1),1)},fields:[{k:'amount',label:'Valor cobrado',type:'money',req:1},{k:'date',label:'Data da cobrança',type:'date',req:1}],
   onSave:v=>{put('tx',{id:uid(),kind:'out',amount:v.amount,date:v.date,purchaseDate:v.date,accountId:a.id,categoryId:cat.id,desc:'Juros cheque especial '+monYr(d.k),tags:[],paid:v.date<=today(),odFor:a.id+'|'+d.k,payer:ME?.email||''});toast('Juros lançados')}})}});
+
+/* ---------------- moeda estrangeira no lançamento ---------------- */
+const CURS=[['BRL','Real','R$'],['USD','Dólar americano','US$'],['EUR','Euro','€'],['GBP','Libra esterlina','£'],['ARS','Peso argentino','AR$'],['CLP','Peso chileno','CL$'],['UYU','Peso uruguaio','UY$'],['PYG','Guarani paraguaio','₲'],['CAD','Dólar canadense','C$'],['AUD','Dólar australiano','A$'],['CHF','Franco suíço','CHF'],['JPY','Iene japonês','¥'],['CNY','Yuan chinês','¥'],['MXN','Peso mexicano','MX$']];
+const IOF_INTL=3.5;
+const curSym=c=>(CURS.find(x=>x[0]===c)||CURS[0])[2];
+const curPh=c=>curSym(c||'BRL')+' 0,00';
+const curFmt=(v,c)=>curSym(c)+' '+(+v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function curSelect(d){return `<select id="tx_cur" class="cursel" data-chg="txcur" aria-label="Moeda">${CURS.map(([k,n,s])=>`<option value="${k}" ${(d.cur||'BRL')===k?'selected':''}>${s} ${k==='BRL'?'Real':k}</option>`).join('')}</select>`}
+function txBRL(d){const v=parseMoney(d.amount);if(!d.cur||d.cur==='BRL')return r2(v);const rate=parseMoney(d.rate);return r2(v*rate*(d.iof?1+IOF_INTL/100:1))}
+function fxFields(d){if(!d.cur||d.cur==='BRL')return{cur:null,curAmt:null,rate:null,iof:null};return{cur:d.cur,curAmt:r2(parseMoney(d.amount)),rate:parseMoney(d.rate),iof:!!d.iof}}
+function fxBox(d){if(!d.cur||d.cur==='BRL')return '';const isCard=String(d.src||'').startsWith('c:');
+ return `<div class="fxbox"><div class="fxrow"><label class="fl" style="flex:1"><span>Cotação ${esc(d.cur)} → R$ <em id="fx_src" style="display:inline">${esc(ui.fxMsg||'')}</em></span><input id="tx_rate" inputmode="decimal" value="${esc(d.rate)}" placeholder="buscando…" data-inp="txrate"></label><button type="button" class="btn sm" data-act="fxrefresh" style="align-self:flex-end">↻ Atualizar</button></div>
+ <label class="sw"><span>Somar IOF de compra internacional (${String(IOF_INTL).replace('.',',')}%)${isCard?'':'<em style="display:block;font-size:12px;color:var(--faint);font-weight:500">Comum em compras no cartão ou cartão internacional</em>'}</span><input type="checkbox" id="tx_iof" data-chg="txiof" ${d.iof?'checked':''}><i></i></label>
+ <div class="fxtot">Valor em reais: <b id="fx_total">${money(txBRL(d))}</b></div></div>`}
+function fxUpdateTotal(){if(!draft)return;syncDraft();const el=$('#fx_total');if(el)el.textContent=money(txBRL(draft))}
+const fxCache={};
+async function fetchRate(cur,date){const td=today();const key=cur+'|'+(date>=td?'hoje':date);if(fxCache[key])return fxCache[key];
+ const tryJ=async u=>{const c=new AbortController();const tm=setTimeout(()=>c.abort(),8000);try{const r=await fetch(u,{signal:c.signal});if(!r.ok)throw 0;return await r.json()}finally{clearTimeout(tm)}};
+ let out=null;
+ try{if(date>=td){const j=await tryJ(`https://economia.awesomeapi.com.br/json/last/${cur}-BRL`);const o=j[cur+'BRL'];if(o)out={rate:+o.ask||+o.bid,when:new Date(+o.timestamp*1000).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),src:'AwesomeAPI'}}
+  else{const d0=addDaysStr(date,-6).replace(/-/g,''),d1=date.replace(/-/g,'');const j=await tryJ(`https://economia.awesomeapi.com.br/json/daily/${cur}-BRL/10?start_date=${d0}&end_date=${d1}`);if(Array.isArray(j)&&j.length){const o=j.sort((a,b)=>+b.timestamp-+a.timestamp)[0];out={rate:+o.ask||+o.bid,when:new Date(+o.timestamp*1000).toLocaleDateString('pt-BR'),src:'AwesomeAPI'}}}}catch(e){}
+ if(!out){try{const j=await tryJ(`https://open.er-api.com/v6/latest/${cur}`);if(j&&j.rates&&j.rates.BRL)out={rate:+j.rates.BRL,when:'hoje',src:'ExchangeRate-API'}}catch(e){}}
+ if(out){out.rate=Math.round(out.rate*10000)/10000;fxCache[key]=out}return out}
+const addDaysStr=(d,n)=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);return ymd(x)};
+async function fxLoad(force){if(!draft||!draft.cur||draft.cur==='BRL')return;syncDraft();const cur=draft.cur,date=draft.date||today();if(!force&&draft.rate&&draft.rateFor===cur+'|'+date)return;
+ ui.fxMsg='buscando…';const s=$('#fx_src');if(s)s.textContent='buscando…';
+ const r=await fetchRate(cur,date);if(!draft||draft.cur!==cur)return;
+ if(r){draft.rate=String(r.rate).replace('.',',');draft.rateFor=cur+'|'+date;ui.fxMsg=`(${r.when})`;const i=$('#tx_rate');if(i)i.value=draft.rate}else{ui.fxMsg='(sem conexão: digite a cotação)'}
+ const s2=$('#fx_src');if(s2)s2.textContent=ui.fxMsg;fxUpdateTotal()}
+Object.assign(CHG,{txcur:el=>{syncDraft();draft.cur=el.value;draft.rate='';draft.rateFor='';ui.fxMsg='';if(draft.cur!=='BRL'&&String(draft.src||'').startsWith('c:'))draft.iof=true;renderTx();setTimeout(()=>{const a=$('#tx_amt');if(a)a.focus()},40);fxLoad(true)},txiof:()=>fxUpdateTotal()});
+Object.assign(INP,{txamt:()=>fxUpdateTotal(),txrate:()=>{if(draft)draft.rateFor='manual';fxUpdateTotal()}});
+Object.assign(A,{fxrefresh:()=>fxLoad(true)});
+// quando a data muda, busca a cotação daquele dia
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='tx_date'&&draft&&draft.cur&&draft.cur!=='BRL'&&draft.rateFor!=='manual')setTimeout(()=>fxLoad(true),30)});

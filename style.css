@@ -367,3 +367,10 @@ body.light #lock{background:radial-gradient(ellipse at top,#dcf5e6 0%,#f4f6f8 65
 .lbrk .sw{font-weight:600}.lbrk .sw.mut{font-weight:500;color:var(--muted)}
 .sheet-bd>*{flex-shrink:0}
 @media(min-width:900px){.sheet:has(.tb){max-width:880px}}
+.amtrow{display:flex;align-items:center;gap:8px}
+.amtrow .amount-in{flex:1;min-width:0}
+.cursel{width:auto;flex-shrink:0;font-weight:700;padding:9px 10px;font-size:14px}
+.fxbox{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.fxbox input{background:var(--panel)}
+.fxrow{display:flex;gap:8px;align-items:flex-end}
+.fxtot{font-size:15px;color:var(--muted)}.fxtot b{color:var(--text);font-size:18px}

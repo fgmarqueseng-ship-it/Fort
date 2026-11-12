@@ -1,6 +1,6 @@
 // Service worker simples: permite instalar o Fort e abre a última versão quando há internet.
-const CACHE='fort-v17';
-const ASSETS=['./','index.html','style.css?v=17','config.js?v=17','core.js?v=17','fort.js?v=17','fort2.js?v=17','boot.js?v=17','manifest.json','icons/icon-192.png','vendor/supabase.js'];
+const CACHE='fort-v18';
+const ASSETS=['./','index.html','style.css?v=18','config.js?v=18','core.js?v=18','fort.js?v=18','fort2.js?v=18','boot.js?v=18','manifest.json','icons/icon-192.png','vendor/supabase.js'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).catch(()=>{}));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
