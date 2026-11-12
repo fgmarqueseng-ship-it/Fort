@@ -16,7 +16,7 @@ const brandMark=()=>`<span class="logo fortlogo">${fortSvg()}</span>`;
 const myKey=()=>'u_'+(ME?.id||'local');
 const myPrefs=()=>byId('settings',myKey())||{};
 const appCfg=()=>byId('settings','app')||{};
-function savePrefs(patch){return put('settings',{...myPrefs(),...patch,id:myKey()})}
+function savePrefs(patch){return put('settings',{...myPrefs(),...patch,email:ME?.email||'',id:myKey()})}
 function saveApp(patch){return put('settings',{...appCfg(),...patch,id:'app'})}
 const myName=()=>myPrefs().name||(ME?.email||'').split('@')[0]||'Você';
 function meAvatar(px=38){const p=myPrefs();return p.photo?`<span class="me-av" style="width:${px}px;height:${px}px"><img src="${esc(p.photo)}" alt=""></span>`:`<span class="me-av" style="width:${px}px;height:${px}px;font-size:${Math.round(px*.38)}px">${esc(initials(myName()))}</span>`}
@@ -24,7 +24,7 @@ function sideProfile(){return `<div class="sideprof"><button class="sp-me" data-
 function homeGreeting(){const h=new Date().getHours();const s=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';return `<div class="greet">${s}, <b>${esc(myName().split(' ')[0])}</b></div>`}
 
 let themeSig='';
-function afterRender(){const p=myPrefs();const sig=[p.bg?p.bg.length+p.bg.slice(-40):'',p.bgDim,p.accent,p.noMark].join('|');if(sig===themeSig)return;themeSig=sig;
+function afterRender(){applyTheme();const p=myPrefs();const sig=[p.bg?p.bg.length+p.bg.slice(-40):'',p.bgDim,p.accent,p.noMark].join('|');if(sig===themeSig)return;themeSig=sig;
  const b=document.body;const root=document.documentElement;
  if(p.bg){b.classList.add('hasbg');b.style.setProperty('--bgimg',`url("${p.bg}")`);b.style.setProperty('--bgdim',String((p.bgDim??70)/100))}else{b.classList.remove('hasbg');b.style.removeProperty('--bgimg')}
  const ac=ACCENTS.find(a=>a.v===p.accent)||ACCENTS[0];root.style.setProperty('--accent',ac.v);root.style.setProperty('--accent-ink',ac.ink);
@@ -71,7 +71,7 @@ const ALERT_DAYS=[[0,'No dia'],[1,'1 dia antes'],[3,'3 dias antes'],[7,'7 dias a
 const alertDays=()=>myPrefs().alertDays||[0,1,3];
 async function pushState(){try{if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))return isIOS()&&!isStandalone()?'ios':'unsupported';if(Notification.permission==='denied')return 'denied';const reg=await Promise.race([navigator.serviceWorker.ready,new Promise((_,rj)=>setTimeout(()=>rj(new Error('sw')),6000))]);const s=await reg.pushManager.getSubscription();return s?'on':'off'}catch(e){return 'unsupported'}}
 async function refreshPushState(){ui.push=await pushState();if(ui.view==='ajustes')render()}
-async function pushSave(sub){const j=sub.toJSON();const{error}=await SB.from('fort_push').upsert({endpoint:j.endpoint,sub:j,email:ME.email,days:alertDays(),updated_at:new Date().toISOString()});if(error)throw error}
+async function pushSave(sub){const j=sub.toJSON();const row={endpoint:j.endpoint,sub:j,email:ME.email,days:alertDays(),budget:myPrefs().alertBudget!==false,updated_at:new Date().toISOString()};let{error}=await SB.from('fort_push').upsert(row);if(error&&/budget/.test(error.message)){delete row.budget;({error}=await SB.from('fort_push').upsert(row))}if(error)throw error}
 async function pushEnable(){if(!(window.FORT_CONFIG||{}).vapidPublic)return toast('Notificações ainda não configuradas');
  try{const perm=await Notification.requestPermission();if(perm!=='granted'){toast('Permissão negada. Libere as notificações do site nas configurações do navegador.');return refreshPushState()}
   const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u8(window.FORT_CONFIG.vapidPublic)});
@@ -87,6 +87,7 @@ function alertsSection(){const st=ui.push;const d=alertDays();
  return `${sec('Alertas de vencimento')}<div class="card" style="font-size:14px;line-height:1.5">${head}
  <p class="muted" style="margin-bottom:10px">Todo dia às 8h o Fort avisa no celular as contas, faturas e receitas que vencem. Também aparece um destaque no Início.</p>
  <div class="fl"><span>Avisar</span><div class="chips">${ALERT_DAYS.map(([k,l])=>`<button class="chip ${d.includes(k)?'on':''}" data-act="pushday" data-k="${k}">${l}</button>`).join('')}</div></div>
+ <label class="sw mt"><span>Avisar quando um orçamento passar de 80% e de 100%</span><input type="checkbox" data-chg="pushbudget" ${myPrefs().alertBudget===false?'':'checked'}><i></i></label>
  <div class="prof-b mt">${st==='on'?'<button class="btn sm" data-act="pushtest">Enviar alerta de teste</button><button class="btn sm ghost danger" data-act="pushoff">Desligar neste aparelho</button>':st==='off'?'<button class="btn primary" data-act="pushon">🔔 Ligar alertas neste aparelho</button>':st==null?'<span class="muted">Verificando…</span>':''}</div>
  <div class="muted mt" style="font-size:12.5px">Ligue em cada aparelho onde quiser receber (celular e computador).</div></div>`}
 
@@ -401,6 +402,7 @@ V.ajustes=()=>{const p=myPrefs();const mem=ui.members;
  ${sec('Preferências')}<div class="list"><label class="row sw" style="cursor:pointer"><span>Ocultar valores na tela</span><input type="checkbox" data-chg="hide" ${hideVals?'checked':''}><i></i></label><label class="row sw" style="cursor:pointer"><span>Marca d'água “$” no fundo</span><input type="checkbox" data-chg="mark" ${p.noMark?'':'checked'}><i></i></label><button class="row" data-act="rates"><div class="t"><b>Taxas e indicadores</b><small>Selic, CDI, IPCA e TR das projeções</small></div><span class="mut">${I.right}</span></button><button class="row" data-act="seedcats"><div class="t"><b>Recriar categorias padrão</b><small>Adiciona só as que estiverem faltando</small></div></button></div>
  </div><div>
  ${alertsSection()}
+ ${extraSettings()}
  ${sec('Pessoas com acesso')}<div class="list">${mem?mem.map(m=>`<div class="row"><span class="me-av" style="width:34px;height:34px;font-size:13px">${esc(initials(m.email))}</span><div class="t"><b>${esc(m.email)}</b><small>${m.email.toLowerCase()===(ME?.email||'').toLowerCase()?'Você':'Vê e edita tudo'}</small></div>${m.email.toLowerCase()===(ME?.email||'').toLowerCase()?'':`<button class="btn sm ghost danger" data-act="memdel" data-k="${esc(m.email)}">Remover</button>`}</div>`).join(''):'<div class="empty">Carregando…</div>'}
  <form class="row" data-form="memadd" style="gap:8px"><input id="memmail" type="email" placeholder="E-mail da pessoa (ex.: da Thaís)" autocomplete="off"><button class="btn primary sm">Adicionar</button></form></div>
  <div class="muted mt" style="font-size:13px;line-height:1.5">Depois de adicionada, a pessoa abre o mesmo endereço do Fort, toca em “Criar acesso” com esse e-mail e passa a ver e lançar na mesma base.</div>
@@ -426,7 +428,8 @@ Object.assign(A,{
 });
 Object.assign(CHG,{
  invtype:el=>{const t=invType(el.value);const set=(k,v)=>{const e=document.getElementById('f_'+k);if(e)e.value=v};set('ix',t.ix);set('rate',String(t.rate).replace('.',','));set('tax',t.tax);const n=$('#f_name');if(n&&!n.value)n.placeholder=t.l},
- invreal:el=>{ui.invReal=el.checked;render()},projreal:el=>{ui.projReal=el.checked;render()},
+ invreal:el=>{ui.invReal=el.checked;render()},
+ pushbudget:async el=>{await savePrefs({alertBudget:el.checked});try{const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();if(s)await SB.from('fort_push').update({budget:el.checked}).eq('endpoint',s.endpoint)}catch(e){}},projreal:el=>{ui.projReal=el.checked;render()},
  calm:el=>{ui.cal=ui.cal.slice(0,4)+'-'+el.value;ui.calDay='';render()},caly:el=>{ui.cal=el.value+'-'+ui.cal.slice(5,7);ui.calDay='';render()},
  photo:async el=>{const f=el.files[0];el.value='';if(!f)return;try{const u=await imgToDataUrl(f,256,256,.85,true);savePrefs({photo:u});toast('Foto atualizada')}catch(e){toast('Não consegui ler essa imagem')}},
  bgimg:async el=>{const f=el.files[0];el.value='';if(!f)return;toast('Preparando a imagem…');try{const u=await imgToDataUrl(f,1600,1600,.72,false);savePrefs({bg:u});toast('Fundo atualizado')}catch(e){toast('Não consegui ler essa imagem')}},
@@ -436,4 +439,5 @@ document.addEventListener('submit',async e=>{const f=e.target.dataset&&e.target.
  if(f==='pname'){e.preventDefault();savePrefs({name:($('#pname').value||'').trim()});toast('Nome salvo')}
  if(f==='memadd'){e.preventDefault();const em=($('#memmail').value||'').trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))return toast('Digite um e-mail válido');const{error}=await SB.from('fort_members').insert({email:em});if(error&&!/duplicate/i.test(error.message))toast('Não foi possível adicionar');else{toast('Acesso liberado para '+em);loadMembers()}}});
 // abrir Ajustes carrega a lista de membros
-window.addEventListener('hashchange',()=>{if(location.hash==='#ajustes'){loadMembers();refreshPushState()}});
+window.addEventListener('hashchange',()=>{if(location.hash==='#ajustes')openAjustesExtras()});
+async function openAjustesExtras(){loadMembers();refreshPushState();loadBackups();ui.bioOk=await bioAvailable();if(ui.view==='ajustes')render()}

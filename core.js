@@ -68,7 +68,7 @@ const I={
 };
 
 /* ================= dados ================= */
-const COLS=['accounts','cards','categories','tags','tx','recurrences','budgets','goals','loans','debts','investments','settings'];
+const COLS=['accounts','cards','categories','tags','tx','recurrences','budgets','goals','loans','debts','investments','settings','settles','rules','assets'];
 const S={};COLS.forEach(c=>S[c]=[]);
 let DB=null,USER=null,SAMPLE=null,DL=null;
 let mode='loading',seen=new Set(),confirmed=new Set(),loadTimer=null,stale=false,ver=0,readOnly=false;
@@ -151,7 +151,7 @@ function srcName(t){if(t.kind==='transfer')return(byId('accounts',t.accountId)?.
 const txTitle=t=>t.desc||catOf(t).name;
 function genRecurrence(r,h){const out=[];if(!r.start)return out;let ym=ymOf(r.start);const end=r.end||null;let guard=0;
  while(ym<=h&&(!end||ym<=end)&&guard++<400){const id='r_'+r.id+'_'+ym;
-  if(!byId('tx',id)&&!(r.skip||[]).includes(ym)){const date=dateIn(ym,r.day);const t={id,kind:r.kind,amount:r.amount,desc:r.desc||'',date,purchaseDate:date,categoryId:r.categoryId||null,tags:r.tags||[],recurId:r.id,paid:false};
+  if(!byId('tx',id)&&!(r.skip||[]).includes(ym)){const date=dateIn(ym,r.day);const t={id,kind:r.kind,amount:r.amount,desc:r.desc||'',date,purchaseDate:date,categoryId:r.categoryId||null,tags:r.tags||[],recurId:r.id,paid:false};if(r.split){t.split=true;t.payer=r.payer||''}
    const c=byId('cards',r.cardId);if(c){t.cardId=c.id;t.inv=invoiceMonthFor(c,date);t.paid=true}else t.accountId=r.accountId;out.push(t)}
   ym=addMonths(ym,1)}return out}
 function genLoan(l,h){const out=[];const n=+l.n||0;for(let i=(+l.paidBefore||0);i<n;i++){const date=addMonthsDate(l.first,i);if(ymOf(date)>h)break;const id='l_'+l.id+'_'+(i+1);if(byId('tx',id)||(l.skip||[]).includes(i+1))continue;
@@ -194,8 +194,9 @@ function txRow(t,opt={}){const c=catOf(t);const bits=[];if(opt.date)bits.push(fm
 /* ================= estado de tela ================= */
 const ui={view:'inicio',month:ymOf(today()),txf:'all',txq:'',txsrc:'',ana:'mes',anaKind:'out',exp:'',catTab:'out',cardId:'',cardInv:'',range:6,rp:{range:'3',kind:'out',src:'',cat:'',tag:''},cmp:'',chat:[],projVar:true,parcTab:'ativos'};
 const MORE=[
- ['Organizar',[['contas','Contas','👛','#4fb3a9'],['cartoes','Cartões de crédito','💳','#4fb3a9'],['categorias','Categorias','🏷️','#4fb3a9'],['tags','Tags','#️⃣','#4fb3a9']]],
- ['Planejar',[['investimentos','Investimentos','📈','#3ccf91'],['calendario','Calendário','📅','#3ccf91'],['projecoes','Projeção de longo prazo','🔭','#3ccf91'],['orcamento','Orçamento','🥧','#3ccf91'],['metas','Metas e caixinhas','🎯','#3ccf91']]],
+ ['Organizar',[['contas','Contas','👛','#4fb3a9'],['cartoes','Cartões de crédito','💳','#4fb3a9'],['categorias','Categorias','🏷️','#4fb3a9'],['regras','Regras automáticas','⚡','#4fb3a9'],['tags','Tags','#️⃣','#4fb3a9']]],
+ ['Casal',[['casal','Divisão do casal','💞','#e07a9b']]],
+ ['Planejar',[['patrimonio','Patrimônio','🏛️','#3ccf91'],['investimentos','Investimentos','📈','#3ccf91'],['reserva','Reserva de emergência','🛟','#3ccf91'],['calendario','Calendário','📅','#3ccf91'],['projecoes','Projeção de longo prazo','🔭','#3ccf91'],['orcamento','Orçamento','🥧','#3ccf91'],['metas','Metas e caixinhas','🎯','#3ccf91']]],
  ['Acompanhar',[['recorrencias','Recorrências','🔁','#efb34d'],['parcelamentos','Parcelamentos','🧩','#efb34d'],['financiamentos','Financiamentos','🏦','#efb34d'],['emprestimos','Empréstimos','🤝','#efb34d'],['quem-me-deve','Quem me deve','💸','#efb34d']]],
  ['Analisar',[['analise','Análise do mês','📊','#6d9be0'],['relatorio','Relatório personalizado','📄','#6d9be0'],['avancados','Relatórios avançados','🗂️','#6d9be0']]],
  ['Ferramentas',[['importar-exportar','Importar e exportar','📁','#e08a6d'],['ajustes','Ajustes e perfil','⚙️','#e08a6d']]]
@@ -248,7 +249,7 @@ V.inicio=()=>{const ym=ui.month,end=endOf(ym);const accs=activeAccs();
   ${homeInvest(ym)}
   ${budgetMini(ym)}
  </div>`;
- return header(monthLabel(ym).split(' ')[0]+' '+ym.slice(0,4),{actions:`${monthNav()}<button class="icon-btn mob avbtn" data-act="go" data-go="ajustes" aria-label="Perfil e ajustes">${meAvatar(40)}</button>`}).replace(/<h1>.*?<\/h1>/,'<h1 class="desk">Início</h1>')+homeGreeting()+installBanner()+onboarding()+dueCard()+homeCharts(ym,'desk')+`<div class="home">${L}${R}</div>`+homeCharts(ym,'mob')};
+ return header(monthLabel(ym).split(' ')[0]+' '+ym.slice(0,4),{actions:`${monthNav()}<button class="icon-btn mob avbtn" data-act="go" data-go="ajustes" aria-label="Perfil e ajustes">${meAvatar(40)}</button>`}).replace(/<h1>.*?<\/h1>/,'<h1 class="desk">Início</h1>')+homeGreeting()+installBanner()+onboarding()+dueCard()+budgetCard()+homeCharts(ym,'desk')+`<div class="home">${L}${R}</div>`+homeCharts(ym,'mob')};
 function budgetMini(ym){if(!S.budgets.length)return '';const exp=byCat(monthExp(ym));const rows=S.budgets.map(b=>{const c=byId('categories',b.categoryId);if(!c)return '';const sp=exp.find(x=>x.id===b.categoryId)?.total||0;const p=b.amount?sp/b.amount:0;return {c,sp,b,p}}).filter(Boolean).sort((a,b)=>b.p-a.p).slice(0,4);
  return sec('Orçamento','orcamento')+`<div class="list">${rows.map(({c,sp,b,p})=>`<div class="row">${ib(c.emoji,c.color,'sm')}<div class="t"><b>${esc(c.name)}</b><div class="bar" style="--c:${p>1?'var(--out)':p>.8?'var(--warn)':'var(--in)'}"><i style="width:${Math.min(100,p*100)}%"></i></div></div><div class="amt"><b>${money(sp)}</b><small>de ${money(b.amount)}</small></div></div>`).join('')}</div>`}
 
@@ -357,7 +358,7 @@ V['quem-me-deve']=()=>{const people=new Map();for(const d of S.debts){const rec=
 /* ---- relatórios ---- */
 function rangeSel(){return `<select data-chg="range">${[[1,'Mês selecionado'],[3,'Últimos 3 meses'],[6,'Últimos 6 meses'],[12,'Últimos 12 meses']].map(([v,l])=>`<option value="${v}" ${ui.range==v?'selected':''}>${l}</option>`).join('')}</select>`}
 const REPORTS=[['rel-faturas','Relatório de faturas','Total por cartão e categoria nas faturas','💳'],['rel-fluxo','Fluxo de caixa','Entradas, saídas e saldo acumulado mês a mês','↕️'],['rel-resultado','Resultado por categoria','Entradas, saídas e saldo por período','📈'],['rel-comparar','Comparar períodos','Um mês contra outro, por categoria','⇆'],['rel-semana','Despesas por dia da semana','Em que dias você mais gasta','📅'],['rel-fixas','Fixas × variáveis','Recorrentes vs gastos avulsos','🔁'],['rel-previsto','Previsto × realizado','Orçado vs gasto, mês a mês','⚖️'],['rel-exportar','Exportar para planilha','Todas as transações em CSV (abre no Excel)','📑']];
-V.avancados=()=>header('Relatórios avançados',{back:'mais'})+`<div class="card mb"><b>Relatórios em PDF</b><p class="muted" style="font-size:14px;margin:4px 0 12px">Com o nome do Fort, data de geração e todos os dados. No celular, escolha “Salvar como PDF” na tela de impressão.</p><div class="chips"><button class="btn primary sm" data-act="pdfmonth">${I.pdf} Resumo de ${monthLabel(ui.month)}</button><button class="btn sm" data-act="pdfinv">${I.pdf} Investimentos</button><button class="btn sm" data-act="pdfproj">${I.pdf} Projeção de longo prazo</button><button class="btn sm" data-act="go" data-go="relatorio">${I.pdf} Relatório personalizado</button></div></div><div class="list">${REPORTS.map(([k,l,d,e])=>`<button class="row" data-act="go" data-go="${k}">${ib(e,'#5cc4d9')}<div class="t"><b>${l}</b><small>${d}</small></div><span class="mut">${I.right}</span></button>`).join('')}</div>`;
+V.avancados=()=>header('Relatórios avançados',{back:'mais'})+`<div class="card mb"><b>Relatórios em PDF</b><p class="muted" style="font-size:14px;margin:4px 0 12px">Com o nome do Fort, data de geração e todos os dados. No celular, escolha “Salvar como PDF” na tela de impressão.</p><div class="chips"><button class="btn primary sm" data-act="pdfmonth">${I.pdf} Resumo de ${monthLabel(ui.month)}</button><button class="btn sm" data-act="pdfinv">${I.pdf} Investimentos</button><button class="btn sm" data-act="pdfproj">${I.pdf} Projeção de longo prazo</button><button class="btn sm" data-act="pdfyear">${I.pdf} Anual e IR ${ui.month.slice(0,4)}</button><button class="btn sm" data-act="pdfyearprev">${I.pdf} Anual e IR ${+ui.month.slice(0,4)-1}</button><button class="btn sm" data-act="go" data-go="relatorio">${I.pdf} Relatório personalizado</button></div></div><div class="list">${REPORTS.map(([k,l,d,e])=>`<button class="row" data-act="go" data-go="${k}">${ib(e,'#5cc4d9')}<div class="t"><b>${l}</b><small>${d}</small></div><span class="mut">${I.right}</span></button>`).join('')}</div>`;
 const relHd=(t,o={})=>header(t,{back:'avancados',month:o.month!==false,...o});
 V['rel-faturas']=()=>{const ms=range(ui.month,ui.range);const rows=S.cards.map(c=>({c,vals:ms.map(m=>invoice(c,m).total)}));const items=S.tx.filter(t=>t.cardId&&t.kind==='out'&&ms.includes(t.inv));const cats=byCat(items);const tot=sum(items,t=>t.amount);
  return relHd('Relatório de faturas')+`<div class="filters">${rangeSel()}</div><div class="card scroll-x mb"><table class="tb"><tr><th>Cartão</th>${ms.map(m=>`<th>${monYr(m)}</th>`).join('')}<th>Total</th></tr>${rows.map(r=>`<tr><td>${esc(r.c.name)}</td>${r.vals.map(v=>`<td>${money(v)}</td>`).join('')}<td><b>${money(sum(r.vals))}</b></td></tr>`).join('')}<tr class="tot"><td>Total</td>${ms.map((m,i)=>`<td>${money(sum(rows,r=>r.vals[i]))}</td>`).join('')}<td>${money(sum(rows,r=>sum(r.vals)))}</td></tr></table></div>
@@ -405,9 +406,9 @@ V.comprovante=()=>header('Importar comprovante',{back:'mais'})+`<div class="card
  ${SAMPLE&&!ui.imgOff?`<label class="btn primary" style="position:relative;overflow:hidden;justify-content:center;width:100%">📷 Escolher imagem<input type="file" class="fileov" accept="image/*" data-chg="receipt"></label><div id="rcpt" class="mt">${ui.rcptMsg||''}</div>`:`<div class="banner">${ui.imgOff||'Disponível apenas abrindo o app pelo Claude.'}</div>`}</div>`;
 
 V['importar-exportar']=()=>header('Importar e exportar',{back:'mais'})+`<div class="home"><div>${sec('Exportar')}<div class="card"><div class="grid2"><button class="btn primary" data-act="exportcsv" data-scope="all">Planilha CSV</button><button class="btn" data-act="backup">Backup completo</button></div><p class="muted mt" style="font-size:13px">O backup (JSON) guarda tudo: contas, cartões, categorias, lançamentos, metas… e pode ser restaurado aqui.</p><div id="exportout"></div></div></div>
- <div>${sec('Importar extrato (CSV)')}<div class="card"><p class="muted mb" style="font-size:14px">Colunas aceitas: <b>data; descrição; valor</b> e, opcionalmente, <b>categoria</b>. Valores negativos viram despesas e positivos, receitas.</p>
- <label class="fl"><span>Conta de destino</span><select id="impacc">${S.accounts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label>
- <label class="btn mt" style="position:relative;overflow:hidden;justify-content:center;width:100%">Escolher arquivo CSV<input type="file" class="fileov" accept=".csv,text/csv,text/plain" data-chg="impcsv"></label><div id="impout" class="mt"></div></div>
+ <div>${sec('Importar extrato (OFX ou CSV)')}<div class="card"><p class="muted mb" style="font-size:14px">Colunas aceitas: <b>data; descrição; valor</b> e, opcionalmente, <b>categoria</b>. Valores negativos viram despesas e positivos, receitas.</p>
+ <label class="fl"><span>Conta ou cartão de destino</span><select id="impacc">${S.accounts.filter(a=>!a.archived).map(a=>`<option value="a:${a.id}">${esc(a.name)}</option>`).join('')}${S.cards.map(c=>`<option value="c:${c.id}">💳 ${esc(c.name)}</option>`).join('')}</select></label>
+ <label class="btn mt" style="position:relative;overflow:hidden;justify-content:center;width:100%">Escolher arquivo CSV<input type="file" class="fileov" accept=".csv,.ofx,.qfx,text/csv,text/plain,application/x-ofx" data-chg="impcsv"></label><div id="impout" class="mt"></div></div>
  ${sec('Restaurar backup')}<div class="card"><label class="btn" style="position:relative;overflow:hidden;justify-content:center;width:100%">Escolher arquivo de backup (.json)<input type="file" class="fileov" accept=".json,application/json" data-chg="restore"></label></div></div></div>`;
 
 V.ajustes=()=>header('Ajustes',{back:'mais'})+`<div class="list mb"><label class="row sw" style="cursor:pointer"><span>Ocultar valores na tela</span><input type="checkbox" data-chg="hide" ${hideVals?'checked':''}><i></i></label><button class="row" data-act="seedcats"><div class="t"><b>Recriar categorias padrão</b><small>Adiciona só as que estiverem faltando</small></div></button></div>
@@ -462,10 +463,10 @@ function openForm(cfg){curForm=cfg;const v=cfg.values||{};
 let draft=null;
 function openTx(t,preset={}){
  if(t&&t.kind==='invpay'){const c=byId('cards',t.cardId);return openForm({title:'Pagamento de fatura',values:t,fields:[{k:'amount',label:'Valor',type:'money',req:1},{k:'date',label:'Data',type:'date',req:1},{k:'accountId',label:'Pago com a conta',type:'select',options:()=>S.accounts.map(a=>({v:a.id,l:a.name}))}],intro:`<div class="muted">${esc(c?.name||'Cartão')} · fatura de ${monthLabel(t.inv)}</div>`,onSave:v=>put('tx',{...t,...v}),onDelete:()=>del('tx',t.id)})}
- if(t)draft={id:t.id,kind:t.kind,amount:fmtNum(t.amount),desc:t.desc||'',date:t.date,src:t.cardId?'c:'+t.cardId:'a:'+(t.accountId||''),to:t.toAccountId||'',cat:t.categoryId||'',tags:[...(t.tags||[])],paid:!!t.paid,repeat:'none',n:2,note:t.note||'',orig:t};
- else{const a=activeAccs()[0];draft={kind:'out',amount:'',desc:'',date:today(),src:a?'a:'+a.id:'',to:'',cat:'',tags:[],paid:true,repeat:'none',n:2,note:'',...preset}}
+ if(t)draft={id:t.id,kind:t.kind,amount:fmtNum(t.amount),desc:t.desc||'',date:t.date,src:t.cardId?'c:'+t.cardId:'a:'+(t.accountId||''),to:t.toAccountId||'',cat:t.categoryId||'',tags:[...(t.tags||[])],paid:!!t.paid,repeat:'none',n:2,note:t.note||'',split:!!t.split,payer:t.payer||'',attach:[...(t.attach||[])],orig:t};
+ else{const a=activeAccs()[0];draft={kind:'out',amount:'',desc:'',date:today(),src:a?'a:'+a.id:'',to:'',cat:'',tags:[],paid:true,repeat:'none',n:2,note:'',split:!!myPrefs().splitDefault,payer:ME?.email||'',attach:[],...preset}}
  renderTx()}
-function syncDraft(){const d=draft;if(!d)return;const g=id=>document.getElementById(id);if(g('tx_amt'))d.amount=g('tx_amt').value;if(g('tx_desc'))d.desc=g('tx_desc').value;if(g('tx_date'))d.date=g('tx_date').value||today();if(g('tx_src'))d.src=g('tx_src').value;if(g('tx_to'))d.to=g('tx_to').value;if(g('tx_paid'))d.paid=g('tx_paid').checked;if(g('tx_n'))d.n=g('tx_n').value;if(g('tx_note'))d.note=g('tx_note').value}
+function syncDraft(){const d=draft;if(!d)return;const g=id=>document.getElementById(id);if(g('tx_amt'))d.amount=g('tx_amt').value;if(g('tx_desc'))d.desc=g('tx_desc').value;if(g('tx_date'))d.date=g('tx_date').value||today();if(g('tx_src'))d.src=g('tx_src').value;if(g('tx_to'))d.to=g('tx_to').value;if(g('tx_paid'))d.paid=g('tx_paid').checked;if(g('tx_n'))d.n=g('tx_n').value;if(g('tx_note'))d.note=g('tx_note').value;if(g('tx_split'))d.split=g('tx_split').checked;if(g('tx_payer'))d.payer=g('tx_payer').value}
 function renderTx(){const d=draft,isNew=!d.id;const isCard=d.src.startsWith('c:');const cards=d.kind==='out'?S.cards:[];
  if(isCard&&d.kind!=='out')d.src=activeAccs()[0]?'a:'+activeAccs()[0].id:'';
  const cats=S.categories.filter(c=>c.kind===(d.kind==='in'?'in':'out')).sort((a,b)=>a.name.localeCompare(b.name));
@@ -490,19 +491,22 @@ function renderTx(){const d=draft,isNew=!d.id;const isCard=d.src.startsWith('c:'
  ${d.repeat==='fixed'?`<em id="tx_fixhint" class="muted" style="font-size:13px">Vai se repetir todo dia ${+String(d.date).slice(8,10)} e aparece em Recorrências.</em>`:''}`:''}
  ${!isNew&&d.orig.inst?`<div class="banner info" style="margin:0">Parcela ${d.orig.inst.n} de ${d.orig.inst.of}. A edição vale só para esta parcela.</div>`:''}
  ${!isNew&&d.orig.recurId?`<div class="banner info" style="margin:0">Lançamento de uma recorrência. Para mudar todos os meses, edite em Recorrências.</div>`:''}
+ ${d.kind!=='transfer'?txCoupleHtml(d):''}
  <label class="fl"><span>Observação</span><textarea id="tx_note" placeholder="Opcional">${esc(d.note)}</textarea></label>
+ ${txAttachHtml(d)}
  </div><div class="sheet-ft">${!isNew?`<button class="btn ghost danger" data-act="txdel" aria-label="Excluir">${I.trash}</button>`:''}<span class="sp"></span><button class="btn" data-act="close">Cancelar</button><button class="btn primary" data-act="txsave">Salvar</button></div>`);
  if(keepSc){const b=$('#modal .sheet-bd');if(b)b.scrollTop=keepSc}if(keepId){const el=document.getElementById(keepId);if(el)try{el.focus({preventScroll:true})}catch(e){}}}
 async function saveTx(){syncDraft();const d=draft;const amt=r2(parseMoney(d.amount));if(!(amt>0))return toast('Informe o valor');if(!d.src)return toast('Cadastre uma conta primeiro');
  const[st,sid]=d.src.split(':');if(d.kind==='transfer'){if(st!=='a')return toast('Transferência é entre contas');if(!d.to||d.to===sid)return toast('Escolha a conta de destino')}
+ if(d.kind!=='transfer'&&!d.cat){const rc=ruleCat(d.desc,d.kind);if(rc)d.cat=rc}
  if(d.kind!=='transfer'&&!d.cat&&S.categories.length&&!(await confirmBox('Salvar sem categoria?','Salvar assim')))return;
- const base={kind:d.kind,desc:d.kind==='transfer'?'Transferência':d.desc.trim(),categoryId:d.kind==='transfer'?null:(d.cat||null),tags:d.kind==='transfer'?[]:d.tags,note:d.note.trim()};
+ const base={kind:d.kind,desc:d.kind==='transfer'?'Transferência':d.desc.trim(),categoryId:d.kind==='transfer'?null:(d.cat||null),tags:d.kind==='transfer'?[]:d.tags,note:d.note.trim(),split:d.kind==='transfer'?false:!!d.split,payer:d.payer||ME?.email||'',attach:d.attach||[]};
  const setSrc=(t,date)=>{if(st==='c'){const c=byId('cards',sid);t.cardId=sid;t.accountId=null;t.inv=invoiceMonthFor(c,date);t.paid=true}else{t.accountId=sid;t.cardId=null;t.inv=null}t.toAccountId=d.kind==='transfer'?d.to:null;return t};
  if(d.id){const o=d.orig;put('tx',setSrc({...o,...base,amount:amt,date:d.date,purchaseDate:o.inst?o.purchaseDate:d.date,paid:d.paid},d.date));closeModal();return toast('Lançamento atualizado')}
  if(d.repeat==='parcel'&&d.kind!=='transfer'){const n=Math.max(2,Math.min(120,parseInt(d.n)||2));const g=uid();const per=Math.floor(amt/n*100)/100;
   for(let i=0;i<n;i++){const date=addMonthsDate(d.date,i);put('tx',setSrc({id:g+'_'+(i+1),...base,amount:i===n-1?r2(amt-per*(n-1)):per,date,purchaseDate:d.date,group:g,inst:{n:i+1,of:n},total:amt,paid:i===0?d.paid:false},date))}
   closeModal();return toast(`Compra parcelada em ${n}x salva`)}
- if(d.repeat==='fixed'&&d.kind!=='transfer'){const r={id:uid(),desc:base.desc,kind:d.kind,amount:amt,categoryId:base.categoryId,tags:base.tags,day:+d.date.slice(8,10),start:d.date,end:'',active:true,skip:[]};if(st==='c')r.cardId=sid;else r.accountId=sid;await put('recurrences',r);genRecurrence(r,horizon()).forEach((t,i)=>{if(i===0&&!t.cardId)t.paid=d.paid;put('tx',t)});closeModal();return toast('Lançamento fixo criado para os próximos meses')}
+ if(d.repeat==='fixed'&&d.kind!=='transfer'){const r={id:uid(),desc:base.desc,kind:d.kind,amount:amt,categoryId:base.categoryId,tags:base.tags,split:base.split,payer:base.payer,day:+d.date.slice(8,10),start:d.date,end:'',active:true,skip:[]};if(st==='c')r.cardId=sid;else r.accountId=sid;await put('recurrences',r);genRecurrence(r,horizon()).forEach((t,i)=>{if(i===0&&!t.cardId)t.paid=d.paid;put('tx',t)});closeModal();return toast('Lançamento fixo criado para os próximos meses')}
  put('tx',setSrc({id:uid(),...base,amount:amt,date:d.date,purchaseDate:d.date,paid:d.paid},d.date));closeModal();toast('Lançamento salvo')}
 async function deleteTx(){const t=draft.orig;
  if(t.group){const k=await choiceBox('Excluir parcelamento',`Compra em ${t.inst.of} parcelas. O que deseja excluir?`,[['one','Só esta parcela'],['next','Esta e as próximas'],['all','Todas as parcelas','danger']]);if(!k)return;const sib=S.tx.filter(x=>x.group===t.group);(k==='one'?[t]:k==='next'?sib.filter(x=>x.inst.n>=t.inst.n):sib).forEach(x=>del('tx',x.id))}
@@ -523,7 +527,7 @@ function formCard(c){openForm({title:c?'Editar cartão':'Novo cartão',values:c|
  onSave:v=>{if(!(v.closing>=1&&v.closing<=31&&v.due>=1&&v.due<=31)){toast('Dias devem ser de 1 a 31');return false}put('cards',{...(c||{id:uid()}),...v});toast('Cartão salvo')},
  onDelete:c?async()=>{if(S.tx.some(t=>t.cardId===c.id)){toast('Esse cartão tem lançamentos e não pode ser excluído.');return false}await del('cards',c.id);go('cartoes')}:null})}
 function formCat(c){openForm({title:c?'Editar categoria':'Nova categoria',values:c||{kind:ui.catTab,emoji:'🛒',color:PALETTE[S.categories.length%PALETTE.length]},
- fields:[{k:'name',label:'Nome',req:1,focus:1},{k:'kind',label:'Tipo',type:'select',options:[{v:'out',l:'Despesa'},{v:'in',l:'Receita'}]},{k:'emoji',label:'Ícone',type:'emoji'},{k:'color',label:'Cor',type:'color'}],
+ fields:[{k:'name',label:'Nome',req:1,focus:1},{k:'kind',label:'Tipo',type:'select',options:[{v:'out',l:'Despesa'},{v:'in',l:'Receita'}]},{k:'emoji',label:'Ícone',type:'emoji'},{k:'color',label:'Cor',type:'color'},{k:'deduct',label:'Dedutível no Imposto de Renda (saúde, educação…)',type:'toggle'}],
  onSave:v=>put('categories',{...(c||{id:uid()}),...v}),
  onDelete:c?async()=>{const n=S.tx.filter(t=>t.categoryId===c.id).length;if(n&&!(await confirmBox(`${n} lançamentos usam esta categoria e ficarão "Sem categoria". Excluir mesmo assim?`,'Excluir')))return false;await del('categories',c.id)}:null})}
 function formTag(g){openForm({title:g?'Editar tag':'Nova tag',values:g||{},fields:[{k:'name',label:'Nome',req:1,focus:1,ph:'Ex.: Viagem Natal'}],onSave:v=>put('tags',{...(g||{id:uid()}),...v}),onDelete:g?async()=>{S.tx.filter(t=>(t.tags||[]).includes(g.id)).forEach(t=>put('tx',{...t,tags:t.tags.filter(x=>x!==g.id)}));await del('tags',g.id)}:null})}
@@ -571,7 +575,7 @@ function handleImport(text){const rows=parseCSV(text);if(!rows.length){$('#impou
  if(hdr.some(h=>h.includes('data'))){start=1;ci={d:hdr.findIndex(h=>h.includes('data')),ds:hdr.findIndex(h=>h.includes('descri')||h.includes('historico')||h.includes('lancamento')),v:hdr.findIndex(h=>h.includes('valor')),c:hdr.findIndex(h=>h.includes('categoria')),k:hdr.findIndex(h=>h==='tipo')};if(ci.ds<0)ci.ds=1;if(ci.v<0)ci.v=2}
  const out=[];let bad=0;for(const r of rows.slice(start)){const date=parseDate(r[ci.d]);let v=parseMoney(r[ci.v]);if(!date||!v){bad++;continue}let kind=v<0?'out':'in';if(ci.k>=0){const k=norm(r[ci.k]);if(k.startsWith('desp')||k.startsWith('sai')||k.startsWith('deb'))kind='out';else if(k.startsWith('rec')||k.startsWith('ent')||k.startsWith('cred'))kind='in'}
   const cn=ci.c>=0?norm(r[ci.c]):'';const cat=cn?S.categories.find(c=>norm(c.name)===cn&&c.kind===kind):null;out.push({date,desc:String(r[ci.ds]||'').trim(),amount:r2(Math.abs(v)),kind,categoryId:cat?.id||null})}
- importRows=out;$('#impout').innerHTML=out.length?`<div class="banner info">${out.length} lançamentos encontrados${bad?` (${bad} linhas ignoradas)`:''}: ${out.filter(x=>x.kind==='out').length} despesas e ${out.filter(x=>x.kind==='in').length} receitas.</div><div class="list mb">${out.slice(0,5).map(x=>`<div class="row"><div class="t"><b>${esc(x.desc||'—')}</b><small>${brDate(x.date)}</small></div><b class="${x.kind==='in'?'pos':'neg'}">${moneyRaw(x.amount)}</b></div>`).join('')}</div><button class="btn primary" data-act="doimport">Importar ${out.length} lançamentos</button>`:'<div class="banner">Não encontrei linhas válidas. Confira se há colunas de data e valor.</div>'}
+ importPreview(out,bad)}
 function aiContext(){const cur=ymOf(today()),end=endOf(cur);const L=[];
  L.push('Data de hoje: '+brDate(today()));
  L.push('\nCONTAS (saldo atual | previsto fim do mês):');S.accounts.filter(a=>!a.archived).forEach(a=>L.push(`- ${a.name}: ${moneyRaw(accBalance(a,today(),false))} | ${moneyRaw(accBalance(a,end,true))}`));
@@ -650,8 +654,7 @@ const A={
  exportcsv:d=>{const list=d.scope==='month'?S.tx.filter(t=>ymOf(t.date)===ui.month):d.scope==='report'?(ui.rpItems||[]):S.tx;if(!list.length)return toast('Nada para exportar');offerFile(d.scope==='month'?`fort-${ui.month}.csv`:d.scope==='report'?'fort-relatorio.csv':'fort-transacoes.csv',txCSV(list))},
  backup:()=>{const o={app:'fort',version:1,exported:new Date().toISOString()};COLS.forEach(c=>o[c]=S[c]);offerFile(`fort-backup-${today()}.json`,JSON.stringify(o))},
  copyexp:async()=>{try{await navigator.clipboard.writeText($('#exptxt').value);toast('Copiado')}catch(e){$('#exptxt').select();toast('Selecione e copie (Ctrl+C)')}},
- doimport:async()=>{const acc=$('#impacc')?.value;if(!acc)return toast('Cadastre uma conta primeiro');if(!importRows?.length)return;if(!(await confirmBox(`Importar ${importRows.length} lançamentos na conta ${byId('accounts',acc)?.name}?`,'Importar')))return;
-  importRows.forEach(x=>put('tx',{id:uid(),...x,purchaseDate:x.date,accountId:acc,tags:[],paid:true,note:'Importado'}));toast(importRows.length+' lançamentos importados');importRows=null;$('#impout').innerHTML=''},
+ doimport:()=>doImportRows(),
  chatq:d=>sendChat(d.q),chatclear:()=>{ui.chat=[];render()}
 };
 const CHG={
@@ -667,7 +670,7 @@ const CHG={
  hide:el=>{hideVals=el.checked;try{localStorage.setItem('fort.hide',hideVals?'1':'0')}catch(e){}render()},
  receipt:el=>readReceipt(el.files[0]),
  logo:el=>{const f=el.files[0];if(f)logoFromFile(f,el.dataset.id);el.value=''},
- impcsv:el=>{const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>handleImport(String(r.result));r.readAsText(f,'utf-8')},
+ impcsv:el=>{const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const buf=new Uint8Array(r.result);let s=new TextDecoder('utf-8').decode(buf);if(s.includes('\ufffd'))s=new TextDecoder('windows-1252').decode(buf);if(/<OFX>|OFXHEADER/i.test(s))handleOFX(s);else handleImport(s)};r.readAsArrayBuffer(f);el.value=''},
  restore:el=>{const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=async()=>{try{const o=JSON.parse(String(r.result));if(o.app!=='bolso'&&o.app!=='fort')throw 0;const n=COLS.reduce((s,c)=>s+(Array.isArray(o[c])?o[c].length:0),0);if(!(await confirmBox(`Restaurar ${n} itens do backup? Itens com o mesmo código serão substituídos.`,'Restaurar')))return;COLS.forEach(c=>(o[c]||[]).forEach(x=>x&&x.id&&put(c,x)));toast('Backup restaurado')}catch(e){toast('Arquivo de backup inválido')}};r.readAsText(f)}
 };
 const INP={

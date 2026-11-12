@@ -318,3 +318,48 @@ ol.inst li{margin:2px 0}
 .drow:first-child{border-top:0}
 .drow .pill{min-width:96px;text-align:center}
 .drow .dn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+
+/* ================= casal, anexos ================= */
+.couple{display:flex;flex-direction:column;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}
+.couple select{background:var(--panel)}
+.atts{display:flex;flex-direction:column;gap:6px}
+.att{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--panel2);border-radius:10px;padding:4px 4px 4px 12px;font-size:14px}
+.att .link{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.budc .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.budc .drow .pill{min-width:58px}
+
+/* ================= bloqueio ================= */
+#lock{position:fixed;inset:0;z-index:300;background:radial-gradient(ellipse at top,#0f2e1c 0%,#0b0d0f 65%);display:grid;place-items:center;padding:20px}
+.lockbox{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text);width:100%;max-width:320px}
+.lockbox b{font-size:20px;margin-top:6px}.lockbox small{color:var(--muted);font-weight:600;min-height:18px}
+.pindots{display:flex;gap:14px;margin:12px 0 18px}
+.pindots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--muted)}
+.pindots i.on{background:var(--in);border-color:var(--in)}
+.keypad{display:grid;grid-template-columns:repeat(3,72px);gap:14px}
+.keypad button{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.07);font-size:26px;font-weight:700;color:#fff}
+.keypad button:active{background:rgba(255,255,255,.18)}
+
+/* ================= tema claro ================= */
+body.light{--bg:#f4f6f8;--panel:#ffffff;--panel2:#eef1f4;--line:#e1e5ea;--text:#151a1e;--muted:#5d6872;--faint:#8b949c;--in:#14a06b;--out:#d9473e;--warn:#c98a12;color-scheme:light}
+body.light,html:has(body.light){background:var(--bg)}
+body.light .side{background:#fbfcfd}
+body.light .bottom{background:#ffffff}
+body.light .nav-i:hover,body.light button.row:hover,body.light .row.click:hover,body.light .tb tr.click:hover td,body.light .sp-me:hover{background:#f0f2f5}
+body.light #toast{background:#1f262c;color:#fff}
+body.light::after{color:#16a34a;opacity:.04}
+body.light .chart line{stroke:#e6e9ed}
+body.light svg text[style*="eef1f3"]{fill:#151a1e!important}
+body.light .banner{color:#8a5a00;background:#fff6e0;border-color:#f3d48c}
+body.light .banner.info{color:#3d2fb5;background:#f1effe;border-color:#d9d3ff}
+body.light .sw i:after{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+body.light .seg .on{box-shadow:0 1px 3px rgba(0,0,0,.12)}
+body.light .ov{background:rgba(20,26,30,.45)}
+body.light .catbtn.on{background:rgba(107,88,239,.08)}
+body.light .tb tr.sub td{background:#fafbfc}
+body.light.hasbg .card,body.light.hasbg .list{background:rgba(255,255,255,.85)}
+body.light.hasbg::before{background-image:linear-gradient(rgba(244,246,248,var(--bgdim,.7)),rgba(244,246,248,var(--bgdim,.7))),var(--bgimg)}
+body.light .fortlogo{box-shadow:none}
+body.light .auth{background:radial-gradient(ellipse at top,#dcf5e6 0%,#f4f6f8 60%)}
+body.light .keypad button{color:var(--text);background:rgba(0,0,0,.06)}
+body.light #lock{background:radial-gradient(ellipse at top,#dcf5e6 0%,#f4f6f8 65%)}
+.home>div,.morecols>div{min-width:0}

@@ -83,7 +83,9 @@ async function enter(session){if(entered)return;ME={id:session.user.id,email:(se
  const h=decodeURIComponent(location.hash.slice(1));if(V[h]&&h!=='loading')ui.view=h;
  mode='loading';render();DB=makeDB();subscribe();DB.start();
  const wait=setInterval(()=>{if(mode==='db'&&confirmed.size===COLS.length){clearInterval(wait);maybeRefreshRates();if(ui.view==='ajustes')loadMembers()}},500);
- if(ui.view==='ajustes')loadMembers();refreshPushState();setTimeout(pushResync,4000)}
+ if(lockCfg())showLock();
+ loadMembers();if(ui.view==='ajustes')openAjustesExtras();else refreshPushState();setTimeout(pushResync,4000);
+ setTimeout(()=>{if(myPrefs().email!==ME.email&&mode==='db')savePrefs({})},6000)}
 
 (async()=>{
  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
