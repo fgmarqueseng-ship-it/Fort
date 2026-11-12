@@ -257,16 +257,17 @@ V.transacoes=()=>{const ym=ui.month;const ms=monthSummary(ym);
  return header('Transações',{month:true,actions:`<button class="btn primary desk" data-act="newtx">${I.plus} Novo</button>`})+
  `<div class="card grid3 pend mb"><div><small>Entradas</small><b class="pos">${money(ms.inc)}</b></div><div><small>Saídas</small><b class="neg">${money(ms.exp)}</b></div><div><small>Balanço</small><b class="${ms.bal<0?'neg':'pos'}">${money(ms.bal)}</b></div></div>
  <div class="search"><span>${I.search}</span><input id="txq" data-inp="txq" placeholder="Buscar por descrição, categoria ou valor" value="${esc(ui.txq)}"></div>
- <div class="filters"><div class="chips">${[['all','Todas'],['out','Despesas'],['in','Receitas'],['transfer','Transferências'],['pend','Pendentes'],['pagar','A pagar'],['receber','A receber']].map(([k,l])=>`<button class="chip ${ui.txf===k?'on':''}" data-act="txf" data-k="${k}">${l}</button>`).join('')}</div><select data-chg="txsrc">${srcOpts}</select></div>
+ <div class="filters"><div class="chips">${[['all','Todas'],['out','Despesas'],['pagas','Pagas'],['pagar','A pagar'],['in','Receitas'],['recebidas','Recebidas'],['receber','A receber'],['transfer','Transferências'],['pend','Pendentes']].map(([k,l])=>`<button class="chip ${ui.txf===k?'on':''}" data-act="txf" data-k="${k}">${l}</button>`).join('')}</div><select data-chg="txsrc">${srcOpts}</select></div>
  <div id="txlist">${txListHtml()}</div>`};
 function txListHtml(){const ym=ui.month,q=norm(ui.txq);let list=S.tx.filter(t=>ymOf(t.date)===ym);
- if(ui.txf==='pend')list=list.filter(t=>!t.paid&&!t.cardId&&t.kind!=='invpay');else if(ui.txf==='pagar')list=list.filter(t=>!t.paid&&!t.cardId&&t.kind==='out');else if(ui.txf==='receber')list=list.filter(t=>!t.paid&&!t.cardId&&t.kind==='in');else if(ui.txf!=='all')list=list.filter(t=>t.kind===ui.txf);
+ if(ui.txf==='pend')list=list.filter(t=>!t.paid&&!t.cardId&&t.kind!=='invpay');else if(ui.txf==='pagar')list=list.filter(t=>!t.paid&&!t.cardId&&t.kind==='out');else if(ui.txf==='receber')list=list.filter(t=>!t.paid&&!t.cardId&&t.kind==='in');else if(ui.txf==='pagas')list=list.filter(t=>t.kind==='out'&&(t.paid||t.cardId));else if(ui.txf==='recebidas')list=list.filter(t=>t.kind==='in'&&t.paid);else if(ui.txf!=='all')list=list.filter(t=>t.kind===ui.txf);
  if(ui.txsrc){const[st,id]=ui.txsrc.split(':');list=list.filter(t=>st==='c'?t.cardId===id:(t.accountId===id&&!t.cardId)||t.toAccountId===id)}
  if(q)list=list.filter(t=>norm(txTitle(t)+' '+catOf(t).name+' '+srcName(t)+' '+fmtNum(t.amount)+' '+(t.note||'')).includes(q));
  list.sort((a,b)=>b.date.localeCompare(a.date)||String(b.id).localeCompare(a.id));
+ const ftot=ui.txf!=='all'&&ui.txf!=='transfer'?`<div class="muted" style="font-size:13px;margin:-4px 0 8px">${list.length} lançamento${list.length===1?'':'s'} · total ${money(sum(list,x=>x.amount))}</div>`:'';
  if(!list.length)return `<div class="list"><div class="empty">Nenhum lançamento neste mês${q||ui.txf!=='all'||ui.txsrc?' com esses filtros':''}.</div></div>`;
  let html='',cur='',buf=[];const flush=()=>{if(buf.length)html+=`<div class="dayh">${DOW[dowOf(cur)]}, ${fmtDay(cur)}</div><div class="list">${buf.join('')}</div>`;buf=[]};
- for(const t of list){if(t.date!==cur){flush();cur=t.date}buf.push(txRow(t))}flush();return html}
+ for(const t of list){if(t.date!==cur){flush();cur=t.date}buf.push(txRow(t))}flush();return ftot+html}
 
 V.analise=()=>{const ym=ui.month;const ms=monthSummary(ym);const prev=monthSummary(addMonths(ym,-1));
  let top='',groups,tot,lab,sub;
