@@ -247,6 +247,7 @@ V.inicio=()=>{const ym=ui.month,end=endOf(ym);const accs=activeAccs();
   ${sec('Despesas recentes','transacoes')}
   <div class="list">${recent.length?recent.map(t=>txRow(t,{date:true,check:false})).join(''):'<div class="empty">Seus últimos gastos aparecem aqui.</div>'}</div>
   ${homeInvest(ym)}
+  ${homeLoans()}
   ${budgetMini(ym)}
  </div>`;
  return header(monthLabel(ym).split(' ')[0]+' '+ym.slice(0,4),{actions:`${monthNav()}<button class="icon-btn mob avbtn" data-act="go" data-go="ajustes" aria-label="Perfil e ajustes">${meAvatar(40)}</button>`}).replace(/<h1>.*?<\/h1>/,'<h1 class="desk">Início</h1>')+homeGreeting()+installBanner()+onboarding()+dueCard()+budgetCard()+homeCharts(ym,'desk')+`<div class="home">${L}${R}</div>`+homeCharts(ym,'mob')};

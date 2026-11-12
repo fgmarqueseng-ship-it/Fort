@@ -212,3 +212,9 @@ Object.assign(A,{
 });
 Object.assign(CHG,{txfile:el=>{const f=el.files[0];el.value='';if(f)uploadAttach(f)},impacc:()=>renderImport()});
 document.addEventListener('change',e=>{if(e.target&&e.target.id==='impacc'&&ui.impRaw)renderImport()});
+
+/* ---------------- empréstimos e financiamentos no Início ---------------- */
+function homeLoans(){const list=S.loans.filter(l=>loanStats(l).rem>0);if(!list.length)return '';
+ const tot=sum(list,l=>loanStats(l).saldo),mes=sum(list,l=>+l.parcel||0);const go=list.every(l=>l.kind==='emprestimo')?'emprestimos':'financiamentos';
+ return sec('Empréstimos e financiamentos',go)+`<div class="list">${list.map(l=>{const s=loanStats(l);const pct=Math.round(s.pct*100);return `<button class="row" data-act="loan" data-id="${l.id}">${ib(l.kind==='financiamento'?'🏦':'🤝','#d9b25c')}<div class="t"><div class="sw" style="font-weight:inherit"><b>${esc(l.name)}</b><span class="pill ${pct>=75?'ok':pct>=40?'w':''}">${pct}% pago</span></div><div class="bar" style="--c:var(--in);height:9px"><i style="width:${s.pct*100}%"></i></div><small>${s.paidN} de ${s.n} parcelas · faltam ${s.rem}${s.next?' · próxima '+brDate(s.next.date):''}</small></div><div class="amt"><b>${money(l.parcel)}</b><small>deve ${money(s.saldo)}</small></div></button>`}).join('')}
+ <div class="row"><div class="t"><b>Total</b><small>${money(mes)} por mês</small></div><div class="amt"><b class="neg">${money(tot)}</b><small>saldo devedor</small></div></div></div>`}
