@@ -89,7 +89,7 @@ function pump(){while(active<4&&queue.length){const j=queue.shift();active++;j.f
 async function withRetry(fn){try{return await fn()}catch(e){if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,400+Math.random()*900));return fn()}throw e}}
 const clean=o=>JSON.parse(JSON.stringify(o));
 function onWriteErr(e){const c=e&&e.code;console.warn('write',e);
- if(c==='invalid_argument'){readOnly=true;toast('Sem permissão para alterar. Peça acesso de Colaborador ao dono.')}
+ if(c==='invalid_argument'){readOnly=true;toast('Sem permissão para alterar. Confira se este e-mail está em Ajustes e perfil → Pessoas com acesso.')}
  else if(c==='quota_exceeded')toast('Limite de armazenamento atingido. Exclua lançamentos antigos.');
  else if(c==='resource_exhausted')toast('Muitas alterações seguidas. Aguarde um instante.');
  else toast('Não foi possível salvar agora. Verifique a conexão.');}
