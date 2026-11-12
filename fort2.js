@@ -257,3 +257,22 @@ function showLoanSchedule(l){const s=loanSchedule(l);const rows=s.rows;const yrs
  <div class="fl mt"><span>Resumo por ano</span></div><div class="scroll-x"><table class="tb" style="font-size:13px"><tr><th>Ano</th><th>Parcelas</th><th>Amortizado</th><th>Juros</th><th>Pago no ano</th><th>Saldo no fim</th></tr>${[...yrs.values()].map(o=>`<tr><td>${o.y}</td><td>${o.cnt}</td><td>${money(o.amort)}</td><td>${money(o.juros)}</td><td>${money(o.parc)}</td><td>${money(o.saldo)}</td></tr>`).join('')}</table></div>`;
  openForm({title:'Tabela de amortização · '+l.name,intro:t,fields:[],saveLabel:'Fechar',onSave:()=>{}})}
 Object.assign(A,{loansched:d=>{ui.schedAll=false;showLoanSchedule(byId('loans',d.id))},schedall:d=>{ui.schedAll=true;showLoanSchedule(byId('loans',d.id))}});
+
+/* ---------------- cheque especial ---------------- */
+const IOF_DIA=0.000082,IOF_ADIC=0.0038;
+function odInfo(a,bal){const L=+a.odLimit||0;if(!L&&bal>=0)return '';if(bal<0)return ` · <span class="neg">no cheque especial${L?` · resta ${money(Math.max(0,L+bal))}`:''}</span>`;return ` · disponível com limite ${money(bal+L)}`}
+function odCost(a,ym){const rate=(+a.odRate||0)/100;const td=today();const last=ym===ymOf(td)?td:endOf(ym);let juros=0,iof=0,days=0,maxNeg=0;
+ for(let d=1;d<=lastDay(ym);d++){const ds=ym+'-'+pad(d);if(ds>last)break;const b=accBalance(a,ds,false);if(b<0){days++;juros+=-b*rate/30;iof+=-b*IOF_DIA;maxNeg=Math.max(maxNeg,-b)}}
+ iof+=maxNeg*IOF_ADIC;return{juros:r2(juros),iof:r2(iof),total:r2(juros+iof),days,maxNeg:r2(maxNeg)}}
+function odForecast(a){const cur=curYm();for(let k=0;k<12;k++){const m=addMonths(cur,k);const b=accBalance(a,endOf(m),true);if(b<0)return{m,b}}return null}
+function odCard(){const td=today(),cur=curYm();const rows=[];
+ for(const a of activeAccs()){if(a.type==='alimentacao')continue;const bal=accBalance(a,td,false);const L=+a.odLimit||0;
+  if(bal<0){const c=odCost(a,cur);rows.push(`<div class="drow" style="cursor:default;flex-wrap:wrap"><span class="pill bad">no especial</span><span class="dn">${esc(a.name)} · ${money(bal)}${L?` <small class="muted">de ${money(L)}</small>`:''}</span><b>${c.total>0?`≈ ${money(c.total)}`:''}</b>${c.total>0?`<small class="muted" style="width:100%">${c.days} dia${c.days>1?'s':''} negativa este mês · juros ${money(c.juros)} + IOF ${money(c.iof)} (estimado)${a.odRate?'':' · informe os juros no cadastro da conta'}</small>`:(!a.odRate&&L?'<small class="muted" style="width:100%">Informe os juros do cheque especial no cadastro da conta para ver o custo</small>':'')}</div>`)}
+  else if(L||a.odRate){const f=odForecast(a);if(f)rows.push(`<div class="drow" style="cursor:default"><span class="pill w">previsão</span><span class="dn">${esc(a.name)} fica negativa em ${monthLabel(f.m).toLowerCase()}</span><b class="neg">${money(f.b)}</b></div>`)}}
+ if(!rows.length)return '';
+ const prev=addMonths(cur,-1);const owed=activeAccs().filter(a=>+a.odRate>0).map(a=>({a,c:odCost(a,prev)})).filter(x=>x.c.total>0&&!S.tx.some(t=>t.odFor===x.a.id+'|'+prev));
+ return `<div class="card mb duec late"><div class="dh"><b>🏦 Cheque especial</b><a class="link" data-act="go" data-go="contas">Contas ›</a></div><div class="dlist">${rows.join('')}</div>
+ ${owed.length?`<div class="muted mt" style="font-size:13px">${owed.map(x=>`Juros estimados de ${monthLabel(prev).toLowerCase()} na ${esc(x.a.name)}: <b>${money(x.c.total)}</b> <button class="link" data-act="odpost" data-id="${x.a.id}" data-k="${prev}">lançar como despesa</button>`).join('<br>')}</div>`:''}</div>`}
+Object.assign(A,{odpost:async d=>{const a=byId('accounts',d.id);if(!a)return;const c=odCost(a,d.k);let cat=S.categories.find(x=>x.kind==='out'&&/juros|tarifa/.test(norm(x.name)));if(!cat){cat={id:uid(),kind:'out',name:'Juros e tarifas',emoji:'🧾',color:'#8e99a3'};put('categories',cat)}
+ openForm({title:'Lançar juros do cheque especial',intro:`<div class="muted" style="font-size:14px">Estimativa para ${monthLabel(d.k).toLowerCase()}: juros ${money(c.juros)} + IOF ${money(c.iof)}. Ajuste o valor se o extrato do banco mostrar diferente.</div>`,values:{amount:c.total,date:dateIn(addMonths(d.k,1),1)},fields:[{k:'amount',label:'Valor cobrado',type:'money',req:1},{k:'date',label:'Data da cobrança',type:'date',req:1}],
+  onSave:v=>{put('tx',{id:uid(),kind:'out',amount:v.amount,date:v.date,purchaseDate:v.date,accountId:a.id,categoryId:cat.id,desc:'Juros cheque especial '+monYr(d.k),tags:[],paid:v.date<=today(),odFor:a.id+'|'+d.k,payer:ME?.email||''});toast('Juros lançados')}})}});
