@@ -10,8 +10,71 @@
   "theme_color": "#0e1113",
   "lang": "pt-BR",
   "icons": [
-    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
-    {"src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nova despesa",
+      "short_name": "Despesa",
+      "url": "./?acao=despesa",
+      "icons": [
+        {
+          "src": "icons/sc-despesa.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Nova receita",
+      "short_name": "Receita",
+      "url": "./?acao=receita",
+      "icons": [
+        {
+          "src": "icons/sc-receita.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Lançamento rápido (frase ou voz)",
+      "short_name": "Rápido",
+      "url": "./?acao=rapido",
+      "icons": [
+        {
+          "src": "icons/sc-rapido.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Buscar lançamentos",
+      "short_name": "Buscar",
+      "url": "./?acao=buscar",
+      "icons": [
+        {
+          "src": "icons/sc-buscar.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

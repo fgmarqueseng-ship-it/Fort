@@ -71,7 +71,7 @@ const ALERT_DAYS=[[0,'No dia'],[1,'1 dia antes'],[3,'3 dias antes'],[7,'7 dias a
 const alertDays=()=>myPrefs().alertDays||[0,1,3];
 async function pushState(){try{if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window))return isIOS()&&!isStandalone()?'ios':'unsupported';if(Notification.permission==='denied')return 'denied';const reg=await Promise.race([navigator.serviceWorker.ready,new Promise((_,rj)=>setTimeout(()=>rj(new Error('sw')),6000))]);const s=await reg.pushManager.getSubscription();return s?'on':'off'}catch(e){return 'unsupported'}}
 async function refreshPushState(){ui.push=await pushState();if(ui.view==='ajustes')render()}
-async function pushSave(sub){const j=sub.toJSON();const row={endpoint:j.endpoint,sub:j,email:ME.email,days:alertDays(),budget:myPrefs().alertBudget!==false,updated_at:new Date().toISOString()};let{error}=await SB.from('fort_push').upsert(row);if(error&&/budget/.test(error.message)){delete row.budget;({error}=await SB.from('fort_push').upsert(row))}if(error)throw error}
+async function pushSave(sub){const j=sub.toJSON();const row={endpoint:j.endpoint,sub:j,email:ME.email,days:alertDays(),budget:myPrefs().alertBudget!==false,weekly:myPrefs().alertWeekly!==false,updated_at:new Date().toISOString()};let{error}=await SB.from('fort_push').upsert(row);if(error&&/weekly/.test(error.message)){delete row.weekly;({error}=await SB.from('fort_push').upsert(row))}if(error&&/budget/.test(error.message)){delete row.budget;({error}=await SB.from('fort_push').upsert(row))}if(error)throw error}
 async function pushEnable(){if(!(window.FORT_CONFIG||{}).vapidPublic)return toast('Notificações ainda não configuradas');
  try{const perm=await Notification.requestPermission();if(perm!=='granted'){toast('Permissão negada. Libere as notificações do site nas configurações do navegador.');return refreshPushState()}
   const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u8(window.FORT_CONFIG.vapidPublic)});
@@ -84,11 +84,13 @@ async function pushTest(){toast('Enviando um alerta de teste…');const{data:id,
   let j={};try{j=JSON.parse(data.content||'{}')}catch(x){}if(data.status_code===200&&j.sent>0)toast('Alerta enviado! Confira as notificações.');else if(data.status_code===200&&!j.sent)toast('Nenhum aparelho com alertas ligados.');else toast('Erro no envio ('+(data.status_code||'?')+'): '+(j.error||(j.errors||[]).join(' ')||data.error_msg||'').slice(0,140))},5000)}
 function alertsSection(){const st=ui.push;const d=alertDays();
  const head=st==='on'?'<div class="pill ok mb">✓ Alertas ligados neste aparelho</div>':st==='denied'?'<div class="banner mb">As notificações deste site estão bloqueadas no navegador. Libere em Configurações do site → Notificações e volte aqui.</div>':st==='ios'?'<div class="banner info mb">No iPhone, os alertas só funcionam com o Fort instalado na tela de início. Instale e abra o Fort pelo ícone para ligar.</div>':st==='unsupported'?'<div class="banner mb">Este navegador não aceita notificações. Use o Chrome (Android/computador) ou o Fort instalado no iPhone.</div>':'';
- return `${sec('Alertas de vencimento')}<div class="card" style="font-size:14px;line-height:1.5">${head}
+ return `${sec('Alertas no celular')}<div class="card" style="font-size:14px;line-height:1.5">${head}
  <p class="muted" style="margin-bottom:10px">Todo dia às 8h o Fort avisa no celular as contas, faturas e receitas que vencem, os orçamentos estourando e quando uma conta entra (ou vai entrar) no cheque especial. Também aparece um destaque no Início.</p>
  <div class="fl"><span>Avisar</span><div class="chips">${ALERT_DAYS.map(([k,l])=>`<button class="chip ${d.includes(k)?'on':''}" data-act="pushday" data-k="${k}">${l}</button>`).join('')}</div></div>
  <label class="sw mt"><span>Avisar quando um orçamento passar de 80% e de 100%</span><input type="checkbox" data-chg="pushbudget" ${myPrefs().alertBudget===false?'':'checked'}><i></i></label>
- <div class="prof-b mt">${st==='on'?'<button class="btn sm" data-act="pushtest">Enviar alerta de teste</button><button class="btn sm ghost danger" data-act="pushoff">Desligar neste aparelho</button>':st==='off'?'<button class="btn primary" data-act="pushon">🔔 Ligar alertas neste aparelho</button>':st==null?'<span class="muted">Verificando…</span>':''}</div>
+ <label class="sw mt"><span>Resumo da semana toda segunda às 8h <em style="display:block;font-size:12px;font-style:normal" class="muted">Quanto gastaram na semana, o que vence nos próximos 7 dias e como está o orçamento</em></span><input type="checkbox" data-chg="pushweekly" ${myPrefs().alertWeekly===false?'':'checked'}><i></i></label>
+ <label class="sw mt"><span>Mostrar “Fique de olho” no Início <em style="display:block;font-size:12px;font-style:normal" class="muted">Gastos acima da média, contas maiores que o normal e assinaturas que subiram</em></span><input type="checkbox" data-chg="insights" ${myPrefs().insights===false?'':'checked'}><i></i></label>
+ <div class="prof-b mt">${st==='on'?'<button class="btn sm" data-act="pushtest">Enviar alerta de teste</button><button class="btn sm" data-act="weeklytest">Enviar resumo de teste</button><button class="btn sm ghost danger" data-act="pushoff">Desligar neste aparelho</button>':st==='off'?'<button class="btn primary" data-act="pushon">🔔 Ligar alertas neste aparelho</button>':st==null?'<span class="muted">Verificando…</span>':''}</div>
  <div class="muted mt" style="font-size:12.5px">Ligue em cada aparelho onde quiser receber (celular e computador).</div></div>`}
 
 /* ---------------- taxas (Banco Central) ---------------- */
@@ -413,7 +415,7 @@ async function loadMembers(){if(!SB)return;const{data,error}=await SB.from('fort
 
 /* ---------------- ações novas ---------------- */
 Object.assign(A,{
- logout:async()=>{if(!(await confirmBox('Sair do Fort neste aparelho?','Sair')))return;try{await SB.auth.signOut()}catch(e){}location.reload()},
+ logout:async()=>{if(!(await confirmBox('Sair do Fort neste aparelho?','Sair')))return;try{await SNAP.del(snapKey());localStorage.removeItem('fort.member');localStorage.removeItem('fort.me')}catch(e){}try{await SB.auth.signOut()}catch(e){}location.reload()},
  newinv:()=>formInv(),inv:d=>{ui.invId=d.id;ui.invYear='';go('investimento')},editinv:d=>formInv(byId('investments',d.id)),
  snap:d=>formSnap(byId('investments',d.id)),snapedit:d=>formSnap(byId('investments',d.id),d.k),
  invh:d=>{ui.invH=+d.k;ui.invYear='';render()},invyear:d=>{ui.invYear=ui.invYear===d.k?'':d.k;render()},invarch:()=>{ui.invArch=!ui.invArch;render()},

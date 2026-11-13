@@ -51,17 +51,22 @@ function handleOFX(s){const out=[];let bad=0;const blocks=s.split(/<STMTTRN>/i).
  importPreview(out,bad)}
 function isDup(x,src){const[st,id]=src.split(':');return S.tx.some(t=>(x.fitid&&t.fitid===x.fitid)||(t.kind===x.kind&&Math.abs(t.amount-x.amount)<.005&&(t.purchaseDate||t.date)===x.date&&(st==='c'?t.cardId===id:t.accountId===id)&&(!x.desc||!t.desc||norm(t.desc).slice(0,8)===norm(x.desc).slice(0,8))))}
 function importPreview(out,bad){const src=$('#impacc')?.value||'';ui.impRaw=out;ui.impBad=bad;renderImport()}
-function renderImport(){const out=ui.impRaw||[];const src=$('#impacc')?.value||'';const box=$('#impout');if(!box)return;
- out.forEach(x=>{if(!x.categoryId)x.categoryId=ruleCat(x.desc,x.kind)||null;x.dup=src?isDup(x,src):false});
- const fresh=out.filter(x=>!x.dup);importRows=fresh;const dups=out.length-fresh.length;const withCat=fresh.filter(x=>x.categoryId).length;
- box.innerHTML=out.length?`<div class="banner info">${out.length} lançamentos no arquivo${ui.impBad?` (${ui.impBad} linhas ignoradas)`:''}. <b>${fresh.length} novos</b>${dups?`, ${dups} já existiam e serão pulados`:''}. ${withCat} já com categoria pelas suas regras.</div>
- <div class="list mb">${out.slice(0,8).map(x=>{const c=byId('categories',x.categoryId);return `<div class="row" style="${x.dup?'opacity:.45':''}"><div class="t"><b>${esc(x.desc||'—')}</b><small>${brDate(x.date)} · ${x.dup?'já lançado':c?esc(c.name):'sem categoria'}</small></div><b class="${x.kind==='in'?'pos':'neg'}">${moneyRaw(x.amount)}</b></div>`}).join('')}</div>
+function renderImport(){const out=ui.impRaw||[];const src=$('#impacc')?.value||'';const box=$('#impout');if(!box)return;const st=src.split(':')[0];
+ const pdf=ui.impPdf;if(pdf)out.forEach(x=>{if(x.pdf&&!x.kindSet){const k=PDFP.kindFor(x,st,pdf.hasNeg);if(k!==x.kind){x.kind=k;x.categoryId=null}}});
+ out.forEach(x=>{if(!x.categoryId)x.categoryId=(typeof guessCat==='function'?guessCat(x.desc,x.kind):ruleCat(x.desc,x.kind))||null;x.dup=src?isDup(x,src):false});
+ const fresh=out.filter(x=>!x.dup&&!x.skip);importRows=fresh;const dups=out.filter(x=>x.dup).length;const skipped=out.filter(x=>!x.dup&&x.skip).length;const withCat=fresh.filter(x=>x.categoryId).length;
+ const card=st==='c'?byId('cards',src.slice(2)):null;const inv=card&&pdf?($('#impinv')?.value||pdfInvFor(card)):'';
+ box.innerHTML=out.length?`<div class="banner info">${out.length} lançamentos no arquivo${ui.impBad?` (${ui.impBad} linhas ignoradas)`:''}. <b>${fresh.length} para importar</b>${dups?`, ${dups} já existiam e serão pulados`:''}${skipped?`, ${skipped} desmarcados`:''}. ${withCat} já com categoria (pelas suas regras e lançamentos anteriores).</div>
+ ${card&&pdf?`<label class="fl"><span>Entram na fatura de</span><input type="month" id="impinv" value="${esc(inv)}" data-chg="impinv"><em>Parcelas antigas e compras do mês ficam todas nesta fatura</em></label>`:''}
+ <div class="muted" style="font-size:12.5px;margin:4px 0 6px">Toque no valor para trocar entre despesa e receita. Desmarque o que não quiser importar.</div>
+ <div class="list mb impl">${out.map((x,i)=>{const c=byId('categories',x.categoryId);return `<div class="row" style="${x.dup||x.skip?'opacity:.45':''}">${x.dup?'<span class="check" style="visibility:hidden"></span>':`<span class="check ${x.skip?'':'on'}" data-act="impskip" data-i="${i}" title="Importar">${I.check}</span>`}<div class="t"><b>${esc(x.desc||'—')}</b><small>${brDate(x.date)} · ${x.dup?'já lançado':c?esc(c.name):'sem categoria'}</small></div><button class="link" style="font-weight:800;color:var(--${x.kind==='in'?'in':'out'})" data-act="impflip" data-i="${i}" ${x.dup?'disabled':''}>${x.kind==='in'?'+ ':'− '}${moneyRaw(x.amount)}</button></div>`}).join('')}</div>
  ${fresh.length?`<button class="btn primary" data-act="doimport">Importar ${fresh.length} lançamentos</button>`:'<div class="muted">Nada novo para importar.</div>'}`:'<div class="banner">Arquivo sem lançamentos válidos.</div>'}
 async function doImportRows(){const src=$('#impacc')?.value;if(!src)return toast('Cadastre uma conta primeiro');if(!importRows?.length)return;const[st,id]=src.split(':');const nm=st==='c'?byId('cards',id)?.name:byId('accounts',id)?.name;
- if(!(await confirmBox(`Importar ${importRows.length} lançamentos em ${nm}?`,'Importar')))return;
+ const pinv=st==='c'&&ui.impPdf?($('#impinv')?.value||''):'';
+ if(!(await confirmBox(`Importar ${importRows.length} lançamentos em ${nm}${pinv?' (fatura de '+monthLabel(pinv)+')':''}?`,'Importar')))return;
  importRows.forEach(x=>{const t={id:uid(),kind:x.kind,amount:x.amount,desc:x.desc,date:x.date,purchaseDate:x.date,categoryId:x.categoryId||null,tags:[],paid:true,note:'Importado',payer:ME?.email||''};if(x.fitid)t.fitid=x.fitid;
-  if(st==='c'){const c=byId('cards',id);t.cardId=id;t.inv=invoiceMonthFor(c,x.date);t.accountId=null}else t.accountId=id;put('tx',t)});
- toast(importRows.length+' lançamentos importados');importRows=null;ui.impRaw=null;$('#impout').innerHTML=''}
+  if(st==='c'){const c=byId('cards',id);t.cardId=id;t.inv=/^\d{4}-\d{2}$/.test(pinv)?pinv:invoiceMonthFor(c,x.date);t.accountId=null}else t.accountId=id;put('tx',t)});
+ toast(importRows.length+' lançamentos importados');importRows=null;ui.impRaw=null;ui.impPdf=null;$('#impout').innerHTML=''}
 
 /* ---------------- divisão do casal ---------------- */
 if(!ui.casalM)ui.casalM=curYm();
@@ -210,7 +215,7 @@ Object.assign(A,{
  pinset:()=>formPin(),pinoff:async()=>{if(await confirmBox('Desligar o PIN neste aparelho?','Desligar')){localStorage.removeItem(LOCK_KEY);render()}},bioon:()=>bioRegister(),biooff:()=>{const c=lockCfg();localStorage.setItem(LOCK_KEY,JSON.stringify({...c,bio:null}));render()},
  theme:d=>{savePrefs({theme:d.k});setTimeout(applyTheme,30)},bknow:()=>backupNow(),bkdl:d=>downloadBackup(+d.id)
 });
-Object.assign(CHG,{txfile:el=>{const f=el.files[0];el.value='';if(f)uploadAttach(f)},impacc:()=>renderImport()});
+Object.assign(CHG,{txfile:el=>{const f=el.files[0];el.value='';if(f)uploadAttach(f)},impacc:()=>renderImport(),impinv:()=>renderImport()});
 document.addEventListener('change',e=>{if(e.target&&e.target.id==='impacc'&&ui.impRaw)renderImport()});
 
 /* ---------------- empréstimos e financiamentos no Início ---------------- */

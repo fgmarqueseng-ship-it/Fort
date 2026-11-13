@@ -4,11 +4,23 @@
    ===================================================================== */
 const CFG=window.FORT_CONFIG||{};
 
+/* ---------- cópia local dos dados (IndexedDB): abre o app sem internet e mais rápido ---------- */
+const SNAP={
+ db:null,
+ open(){if(this.db)return this.db;this.db=new Promise((res,rej)=>{try{const r=indexedDB.open('fort',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}});return this.db},
+ async get(k){try{const db=await this.open();return await new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}catch(e){return null}},
+ async set(k,v){try{const db=await this.open();await new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error)})}catch(e){}},
+ async del(k){try{const db=await this.open();await new Promise(res=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=res;t.onerror=res})}catch(e){}}
+};
+const snapKey=()=>'snap:'+(ME?.id||'');
+const isNetErr=e=>{const m=String(e?.message||e||'');return !navigator.onLine||/fetch|network|Failed|timeout|Load failed|NetworkError/i.test(m)||e instanceof TypeError};
+
 /* ---------- camada de dados: imita a API usada pelo app (collection/doc/onSnapshot) ---------- */
 function makeDB(){
  const T='fort_docs';const K=(c,i)=>c+'\u0001'+i;
  const cache={};COLS.forEach(c=>cache[c]=new Map());
- const subs={};let loaded=false,loading=null;
+ const subs={};let loaded=false,loading=null,hadSnap=false,snapT=0;
+ const saveSnap=()=>{clearTimeout(snapT);snapT=setTimeout(()=>{const o={};COLS.forEach(c=>o[c]=[...cache[c].entries()]);SNAP.set(snapKey(),{at:Date.now(),email:ME?.email||'',cols:o})},1200)};
  const pending=new Map();        // gravações em andamento: chave -> dados (ou null = exclusão)
  let outbox={};try{outbox=JSON.parse(localStorage.getItem('fort.outbox')||'{}')}catch(e){}
  const saveOutbox=()=>{try{localStorage.setItem('fort.outbox',JSON.stringify(outbox))}catch(e){}};
@@ -16,28 +28,37 @@ function makeDB(){
  const emit=col=>{const l=subs[col];if(!l)return;const docs=[...cache[col].entries()].map(([id,data])=>({id,data:()=>data}));l.forEach(([cb])=>{try{cb({docs,metadata:{fromCache:!loaded}})}catch(e){console.error(e)}})};
  const emitAll=()=>COLS.forEach(emit);
  const errAll=e=>Object.values(subs).forEach(l=>l.forEach(([,er])=>er&&er(e)));
- const mapErr=e=>{const m=String(e?.message||e||'');if(e?.code==='42501'||/row-level security|permission/i.test(m))return{code:'invalid_argument',message:m};if(/fetch|network|Failed|timeout|Load failed/i.test(m)||e instanceof TypeError)return{code:'unavailable',message:m};return{code:'unknown',message:m}};
+ const mapErr=e=>{const m=String(e?.message||e||'');if(/jwt|401|not authenticated/i.test(m+' '+(e?.code||'')))return{code:'unavailable',message:m};if(e?.code==='42501'||/row-level security|permission/i.test(m))return{code:'invalid_argument',message:m};if(/fetch|network|Failed|timeout|Load failed/i.test(m)||e instanceof TypeError)return{code:'unavailable',message:m};return{code:'unknown',message:m}};
  async function rawWrite(col,id,op,data){const q=op==='del'?SB.from(T).delete().match({col,id}):SB.from(T).upsert({col,id,data,updated_by:ME?.email||null,updated_at:new Date().toISOString()});const{error}=await q;if(error)throw mapErr(error)}
- async function write(col,id,op,data){const k=K(col,id);if(op==='del'){cache[col].delete(id);pending.set(k,null)}else{cache[col].set(id,data);pending.set(k,data)}
+ async function write(col,id,op,data){const k=K(col,id);if(op==='del'){cache[col].delete(id);pending.set(k,null)}else{cache[col].set(id,data);pending.set(k,data)}saveSnap();
+  if(!navigator.onLine){outbox[k]={op,data};saveOutbox();stale=true;scheduleRender();return}
   try{await rawWrite(col,id,op,data);if(outbox[k]){delete outbox[k];saveOutbox()}}
   catch(e){if(e.code==='unavailable'){outbox[k]={op,data};saveOutbox();stale=true;scheduleRender();return}throw e}
   finally{if(!outbox[k]&&pending.get(k)===(op==='del'?null:data))pending.delete(k)}}
- async function flush(){const ks=Object.keys(outbox);if(!ks.length)return;for(const k of ks){const[c,i]=k.split('\u0001');const o=outbox[k];try{await rawWrite(c,i,o.op,o.data);delete outbox[k];pending.delete(k)}catch(e){if(e.code==='unavailable')break;delete outbox[k];pending.delete(k)}}saveOutbox()}
+ async function flush(){const ks=Object.keys(outbox);if(!ks.length)return;
+  try{const{data}=await SB.auth.getSession();if(!data.session)return}catch(e){return}
+  for(const k of ks){const[c,i]=k.split('\u0001');const o=outbox[k];try{await rawWrite(c,i,o.op,o.data);delete outbox[k];pending.delete(k)}catch(e){if(e.code==='unavailable')break;delete outbox[k];pending.delete(k)}}saveOutbox()}
  async function loadAll(){if(loading)return loading;loading=(async()=>{
   await flush();
   const fresh={};COLS.forEach(c=>fresh[c]=new Map());let from=0;const P=1000;
   for(;;){const{data,error}=await SB.from(T).select('col,id,data').order('col').order('id').range(from,from+P-1);if(error)throw mapErr(error);for(const r of data)if(fresh[r.col])fresh[r.col].set(r.id,r.data);if(data.length<P)break;from+=P}
   for(const[k,d]of pending){const[c,i]=k.split('\u0001');if(!fresh[c])continue;if(d===null)fresh[c].delete(i);else fresh[c].set(i,d)}
-  COLS.forEach(c=>cache[c]=fresh[c]);loaded=true;stale=false;emitAll()})().catch(e=>{console.warn('load',e);errAll(e);stale=true;scheduleRender()}).finally(()=>{loading=null});return loading}
+  COLS.forEach(c=>cache[c]=fresh[c]);loaded=true;stale=!!Object.keys(outbox).length;emitAll();saveSnap()})().catch(e=>{console.warn('load',e);if(!hadSnap)errAll(e);stale=true;scheduleRender()}).finally(()=>{loading=null});return loading}
+ async function loadSnap(){const s=await SNAP.get(snapKey());if(!s||!s.cols||loaded)return;
+  for(const c of COLS){const m=new Map(s.cols[c]||[]);cache[c]=m}
+  for(const[k,d]of pending){const[c,i]=k.split('\u0001');if(!cache[c])continue;if(d===null)cache[c].delete(i);else cache[c].set(i,d)}
+  hadSnap=true;emitAll()}
  function realtime(){SB.channel('fort-docs').on('postgres_changes',{event:'*',schema:'public',table:T},p=>{
    const row=p.eventType==='DELETE'?p.old:p.new;if(!row||!row.col||!cache[row.col])return;const k=K(row.col,row.id);if(pending.has(k))return;
    if(p.eventType==='DELETE')cache[row.col].delete(row.id);else if(row.data!==undefined)cache[row.col].set(row.id,row.data);else{loadAll();return}
-   emit(row.col)}).subscribe(st=>{if(st==='SUBSCRIBED'&&loaded)loadAll()})}
+   emit(row.col);saveSnap()}).subscribe(st=>{if(st==='SUBSCRIBED'&&loaded)loadAll()})}
  let hiddenAt=0;
  document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(Date.now()-hiddenAt>20000)loadAll()});
- window.addEventListener('online',()=>loadAll());
+ window.addEventListener('online',async()=>{try{await SB.auth.getSession()}catch(e){}loadAll()});
+ window.addEventListener('offline',()=>{stale=true;scheduleRender()});
  return{
-  start(){realtime();loadAll()},reload:loadAll,
+  async start(){await loadSnap();if(navigator.onLine){realtime();loadAll()}else{stale=true;scheduleRender();window.addEventListener('online',()=>realtime(),{once:true})}},reload:loadAll,
+  pendingCount:()=>Object.keys(outbox).length,
   collection(col){return{
    doc(id){return{set:body=>write(col,id,'set',body),delete:()=>write(col,id,'del')}},
    onSnapshot(cb,err){(subs[col]=subs[col]||[]).push([cb,err]);if(loaded)emit(col)}}}}}
@@ -77,7 +98,13 @@ document.addEventListener('submit',async e=>{const f=e.target.dataset&&e.target.
 /* ---------- entrada no app ---------- */
 let entered=false;
 async function enter(session){if(entered)return;ME={id:session.user.id,email:(session.user.email||'').toLowerCase()};
- const{data:ok,error}=await SB.rpc('fort_is_member');if(error){console.warn(error);authShell(`<div class="banner">Não foi possível conectar ao banco de dados agora.</div><p class="muted">${esc(error.message)}</p><button class="btn primary mt" style="width:100%;justify-content:center" data-auth="retry">Tentar de novo</button>`);return}
+ const known=()=>{try{return localStorage.getItem('fort.member')===ME.email}catch(e){return false}};
+ let ok=false,error=null;
+ if(!navigator.onLine&&known())ok=true;
+ else{({data:ok,error}=await SB.rpc('fort_is_member'));
+  if(error&&isNetErr(error)&&known()){ok=true;error=null}}
+ if(error){console.warn(error);authShell(`<div class="banner">Não foi possível conectar ao banco de dados agora.</div><p class="muted">${esc(error.message)}</p><button class="btn primary mt" style="width:100%;justify-content:center" data-auth="retry">Tentar de novo</button>`);return}
+ try{if(ok){localStorage.setItem('fort.member',ME.email);localStorage.setItem('fort.me',JSON.stringify(ME))}else{localStorage.removeItem('fort.member');SNAP.del(snapKey())}}catch(e){}
  if(!ok)return showNotMember(ME.email);
  entered=true;document.body.classList.remove('authmode');
  const h=decodeURIComponent(location.hash.slice(1));if(V[h]&&h!=='loading')ui.view=h;
@@ -92,7 +119,13 @@ async function enter(session){if(entered)return;ME={id:session.user.id,email:(se
  if(!CFG.url||!CFG.anonKey||/COLE_AQUI/.test(CFG.url+CFG.anonKey)||!window.supabase)return showConfigMissing();
  SB=window.supabase.createClient(CFG.url,CFG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
  SB.auth.onAuthStateChange((ev,s)=>{if(ev==='PASSWORD_RECOVERY')showNewPassword();else if(ev==='SIGNED_OUT'&&entered)location.reload();else if(ev==='SIGNED_IN'&&s&&!entered&&!/type=recovery/.test(location.hash))enter(s)});
- const{data}=await SB.auth.getSession();
+ let data={};try{({data}=await SB.auth.getSession())}catch(e){}
  if(/type=recovery/.test(location.hash))return showNewPassword();
- if(data.session)enter(data.session);else showLogin();
+ if(data&&data.session)return enter(data.session);
+ // sem internet e com a sessão vencida: abre com a cópia local; as alterações sobem quando a conexão voltar
+ let me=null;try{me=JSON.parse(localStorage.getItem('fort.me')||'null')}catch(e){}
+ if(!navigator.onLine&&me&&me.id&&localStorage.getItem('fort.member')===me.email){
+  window.addEventListener('online',async()=>{try{const{data:d2}=await SB.auth.getSession();if(!d2.session)location.reload()}catch(e){}},{once:true});
+  return enter({user:{id:me.id,email:me.email}})}
+ showLogin();
 })();

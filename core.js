@@ -183,7 +183,7 @@ function lineChart(pts,color){const W=640,H=250,pl=72,pb=28,pt=14,ih=H-pb-pt,iw=
 const ib=(emoji,color,cls='')=>`<span class="ib ${cls}" style="--c:${esc(color||'#8e99a3')}">${esc(emoji||'•')}</span>`;
 const av=(name,color,logo)=>/^data:image\//.test(logo||'')?`<span class="av img"><img src="${esc(logo)}" alt=""></span>`:`<span class="av" style="background:${esc(color||'#4fb3a9')}">${esc(initials(name))}</span>`;
 const monthNav=()=>`<div class="mnav"><button class="icon-btn plain" data-act="mprev" aria-label="Mês anterior">${I.left}</button><b>${monthLabel(ui.month)}</b><button class="icon-btn plain" data-act="mnext" aria-label="Próximo mês">${I.right}</button></div>`;
-function header(title,o={}){return `<header class="hd">${o.back?`<button class="icon-btn" data-act="go" data-go="${o.back}" aria-label="Voltar">${I.back}</button>`:''}<h1>${esc(title)}</h1><div class="right">${o.month?monthNav():''}${o.actions||''}</div></header>`}
+function header(title,o={}){return `<header class="hd">${o.back?`<button class="icon-btn" data-act="go" data-go="${o.back}" aria-label="Voltar">${I.back}</button>`:''}<h1>${esc(title)}</h1><div class="right">${o.month?monthNav():''}${o.back?'':`<button class="icon-btn mob" data-act="search" aria-label="Buscar">${I.search}</button>`}${o.actions||''}</div></header>`}
 const sec=(title,go,extra='')=>`<div class="sec"><h2>${esc(title)}</h2>${go?`<a data-act="go" data-go="${go}">Ver tudo ›</a>`:extra}</div>`;
 const amtCls=t=>t.kind==='in'?'pos':(t.kind==='out'||t.kind==='invpay')?'neg':'mut';
 const signed=t=>(t.kind==='in'?'+ ':t.kind==='transfer'?'':'− ')+money(t.amount);
@@ -197,7 +197,7 @@ const MORE=[
  ['Organizar',[['contas','Contas','👛','#4fb3a9'],['cartoes','Cartões de crédito','💳','#4fb3a9'],['categorias','Categorias','🏷️','#4fb3a9'],['regras','Regras automáticas','⚡','#4fb3a9'],['tags','Tags','#️⃣','#4fb3a9']]],
  ['Casal',[['casal','Divisão do casal','💞','#e07a9b']]],
  ['Planejar',[['patrimonio','Patrimônio','🏛️','#3ccf91'],['investimentos','Investimentos','📈','#3ccf91'],['reserva','Reserva de emergência','🛟','#3ccf91'],['calendario','Calendário','📅','#3ccf91'],['projecoes','Projeção de longo prazo','🔭','#3ccf91'],['orcamento','Orçamento','🥧','#3ccf91'],['metas','Metas e caixinhas','🎯','#3ccf91']]],
- ['Acompanhar',[['recorrencias','Recorrências','🔁','#efb34d'],['parcelamentos','Parcelamentos','🧩','#efb34d'],['financiamentos','Financiamentos','🏦','#efb34d'],['emprestimos','Empréstimos','🤝','#efb34d'],['quem-me-deve','Quem me deve','💸','#efb34d']]],
+ ['Acompanhar',[['assinaturas','Assinaturas','📺','#efb34d'],['recorrencias','Recorrências','🔁','#efb34d'],['parcelamentos','Parcelamentos','🧩','#efb34d'],['financiamentos','Financiamentos','🏦','#efb34d'],['emprestimos','Empréstimos','🤝','#efb34d'],['quem-me-deve','Quem me deve','💸','#efb34d']]],
  ['Analisar',[['analise','Análise do mês','📊','#6d9be0'],['relatorio','Relatório personalizado','📄','#6d9be0'],['avancados','Relatórios avançados','🗂️','#6d9be0']]],
  ['Ferramentas',[['importar-exportar','Importar e exportar','📁','#e08a6d'],['ajustes','Ajustes e perfil','⚙️','#e08a6d']]]
 ];
@@ -205,12 +205,12 @@ const MAIN=['inicio','transacoes','investimentos','mais'];
 
 function shell(body){const v=ui.view;const mainOf=MAIN.includes(v)?v:(v==='investimento'?'investimentos':'mais');
  const navOn=k=>v===k||(k==='cartoes'&&v==='cartao')||(k==='avancados'&&v.startsWith('rel-'))||(k==='investimentos'&&v==='investimento');
- const side=`<aside class="side"><div class="brand">${brandMark()}<div><div class="bn">${esc(APP.name)}</div><div class="bs">${esc(APP.slogan)}</div></div></div><button class="btn primary" data-act="newtx">${I.plus} Novo lançamento</button>${installBtn('sideinst')}
+ const side=`<aside class="side"><div class="brand">${brandMark()}<div><div class="bn">${esc(APP.name)}</div><div class="bs">${esc(APP.slogan)}</div></div></div><button class="btn primary" data-act="newtx">${I.plus} Novo lançamento</button><div class="sidequick"><button class="btn" data-act="quick">⚡ Rápido</button><button class="btn" data-act="search" title="Buscar (Ctrl+K)">🔍 Buscar</button></div>${installBtn('sideinst')}
  ${[['inicio','Início','🏠'],['transacoes','Transações','⇄']].map(([k,l,e])=>`<button class="nav-i ${navOn(k)?'on':''}" data-act="go" data-go="${k}"><span class="em">${e}</span>${l}</button>`).join('')}
  ${MORE.map(([g,items])=>`<div class="navg">${g}</div>`+items.map(([k,l,e])=>`<button class="nav-i ${navOn(k)?'on':''}" data-act="go" data-go="${k}"><span class="em">${e}</span>${l}</button>`).join('')).join('')}
  <div class="sp"></div>${sideProfile()}</aside>`;
  const bottom=`<nav class="bottom"><button class="${mainOf==='inicio'?'on':''}" data-act="go" data-go="inicio">${I.home}Início</button><button class="${mainOf==='transacoes'?'on':''}" data-act="go" data-go="transacoes">${I.swap}Transações</button><button class="fab" data-act="fabmenu" aria-label="Novo lançamento">${I.plus}</button><button class="${mainOf==='investimentos'?'on':''}" data-act="go" data-go="investimentos">${I.trend}Investir</button><button class="${mainOf==='mais'?'on':''}" data-act="go" data-go="mais">${I.dots}Mais</button></nav>`;
- const banner=mode==='local'?`<div class="banner">Modo local: os dados ficam só neste navegador.</div>`:stale?`<div class="banner">Sem conexão com a nuvem agora. O que aparece pode estar desatualizado; as alterações são enviadas quando a conexão voltar.</div>`:readOnly?`<div class="banner">Você está só visualizando: suas alterações não serão salvas.</div>`:'';
+ const banner=mode==='local'?`<div class="banner">Modo local: os dados ficam só neste navegador.</div>`:stale?(()=>{const n=DB&&DB.pendingCount?DB.pendingCount():0;return `<div class="banner offb">📴 ${navigator.onLine?'Sem conexão com a nuvem agora.':'Sem internet.'} Pode continuar lançando normalmente${n?`: <b>${n} alteraç${n>1?'ões':'ão'}</b> aguardando envio`:''}. Tudo é enviado sozinho quando a conexão voltar.</div>`})():readOnly?`<div class="banner">Você está só visualizando: suas alterações não serão salvas.</div>`:'';
  return `<div class="shell">${side}<main class="main"><div class="page">${banner}${body}</div></main>${bottom}</div>`}
 
 /* ================= telas ================= */
@@ -250,7 +250,7 @@ V.inicio=()=>{const ym=ui.month,end=endOf(ym);const accs=activeAccs();
   ${homeLoans()}
   ${budgetMini(ym)}
  </div>`;
- return header(monthLabel(ym).split(' ')[0]+' '+ym.slice(0,4),{actions:`${monthNav()}<button class="icon-btn mob avbtn" data-act="go" data-go="ajustes" aria-label="Perfil e ajustes">${meAvatar(40)}</button>`}).replace(/<h1>.*?<\/h1>/,'<h1 class="desk">Início</h1>')+homeGreeting()+installBanner()+onboarding()+odCard()+dueCard()+budgetCard()+homeCharts(ym,'desk')+`<div class="home">${L}${R}</div>`+homeCharts(ym,'mob')};
+ return header(monthLabel(ym).split(' ')[0]+' '+ym.slice(0,4),{actions:`${monthNav()}<button class="icon-btn mob avbtn" data-act="go" data-go="ajustes" aria-label="Perfil e ajustes">${meAvatar(40)}</button>`}).replace(/<h1>.*?<\/h1>/,'<h1 class="desk">Início</h1>')+homeGreeting()+installBanner()+onboarding()+odCard()+dueCard()+budgetCard()+insightsCard()+homeCharts(ym,'desk')+`<div class="home">${L}${R}</div>`+homeCharts(ym,'mob')};
 function budgetMini(ym){if(!S.budgets.length)return '';const exp=byCat(monthExp(ym));const rows=S.budgets.map(b=>{const c=byId('categories',b.categoryId);if(!c)return '';const sp=exp.find(x=>x.id===b.categoryId)?.total||0;const p=b.amount?sp/b.amount:0;return {c,sp,b,p}}).filter(Boolean).sort((a,b)=>b.p-a.p).slice(0,4);
  return sec('Orçamento','orcamento')+`<div class="list">${rows.map(({c,sp,b,p})=>`<div class="row">${ib(c.emoji,c.color,'sm')}<div class="t"><b>${esc(c.name)}</b><div class="bar" style="--c:${p>1?'var(--out)':p>.8?'var(--warn)':'var(--in)'}"><i style="width:${Math.min(100,p*100)}%"></i></div></div><div class="amt"><b>${money(sp)}</b><small>de ${money(b.amount)}</small></div></div>`).join('')}</div>`}
 
@@ -407,9 +407,9 @@ V.comprovante=()=>header('Importar comprovante',{back:'mais'})+`<div class="card
  ${SAMPLE&&!ui.imgOff?`<label class="btn primary" style="position:relative;overflow:hidden;justify-content:center;width:100%">📷 Escolher imagem<input type="file" class="fileov" accept="image/*" data-chg="receipt"></label><div id="rcpt" class="mt">${ui.rcptMsg||''}</div>`:`<div class="banner">${ui.imgOff||'Disponível apenas abrindo o app pelo Claude.'}</div>`}</div>`;
 
 V['importar-exportar']=()=>header('Importar e exportar',{back:'mais'})+`<div class="home"><div>${sec('Exportar')}<div class="card"><div class="grid2"><button class="btn primary" data-act="exportcsv" data-scope="all">Planilha CSV</button><button class="btn" data-act="backup">Backup completo</button></div><p class="muted mt" style="font-size:13px">O backup (JSON) guarda tudo: contas, cartões, categorias, lançamentos, metas… e pode ser restaurado aqui.</p><div id="exportout"></div></div></div>
- <div>${sec('Importar extrato (OFX ou CSV)')}<div class="card"><p class="muted mb" style="font-size:14px">Colunas aceitas: <b>data; descrição; valor</b> e, opcionalmente, <b>categoria</b>. Valores negativos viram despesas e positivos, receitas.</p>
+ <div>${sec('Importar extrato ou fatura')}<div class="card"><p class="muted mb" style="font-size:14px"><b>PDF</b> da fatura do cartão ou do extrato, <b>OFX</b> do banco ou planilha <b>CSV</b> (colunas <b>data; descrição; valor</b> e, opcionalmente, <b>categoria</b>). Você confere tudo antes de importar.</p>
  <label class="fl"><span>Conta ou cartão de destino</span><select id="impacc">${S.accounts.filter(a=>!a.archived).map(a=>`<option value="a:${a.id}">${esc(a.name)}</option>`).join('')}${S.cards.map(c=>`<option value="c:${c.id}">💳 ${esc(c.name)}</option>`).join('')}</select></label>
- <label class="btn mt" style="position:relative;overflow:hidden;justify-content:center;width:100%">Escolher arquivo CSV<input type="file" class="fileov" accept=".csv,.ofx,.qfx,text/csv,text/plain,application/x-ofx" data-chg="impcsv"></label><div id="impout" class="mt"></div></div>
+ <label class="btn mt" style="position:relative;overflow:hidden;justify-content:center;width:100%">📄 Escolher arquivo (PDF, OFX ou CSV)<input type="file" class="fileov" accept=".pdf,.csv,.ofx,.qfx,application/pdf,text/csv,text/plain,application/x-ofx" data-chg="impcsv"></label><div id="impout" class="mt"></div></div>
  ${sec('Restaurar backup')}<div class="card"><label class="btn" style="position:relative;overflow:hidden;justify-content:center;width:100%">Escolher arquivo de backup (.json)<input type="file" class="fileov" accept=".json,application/json" data-chg="restore"></label></div></div></div>`;
 
 V.ajustes=()=>header('Ajustes',{back:'mais'})+`<div class="list mb"><label class="row sw" style="cursor:pointer"><span>Ocultar valores na tela</span><input type="checkbox" data-chg="hide" ${hideVals?'checked':''}><i></i></label><button class="row" data-act="seedcats"><div class="t"><b>Recriar categorias padrão</b><small>Adiciona só as que estiverem faltando</small></div></button></div>
@@ -608,11 +608,11 @@ async function readReceipt(file){if(!file)return;ui.rcptMsg='<div class="loading
 /* ================= ações ================= */
 function fabMenu(open){const m=$('#fabm');if(!m)return;if(!open){m.innerHTML='';return}
  const f=document.querySelector('.bottom .fab');if(!f)return A.newtx({});const r=f.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
- const o=[['transfer','Transferir',I.swap,'#4fb3bf',-108,-98],['in','Receita',I.arrUp,'#3ccf91',-46,-162],['card','Despesa<br>cartão',I.card,'#ec937c',46,-162],['out','Despesa',I.arrDn,'#f37a72',108,-98]];
+ const o=[['transfer','Transferir',I.swap,'#4fb3bf',-124,-80],['in','Receita',I.arrUp,'#3ccf91',-80,-168],['quick','Rápido<br>ou voz',ICQ,'#9b8cff',0,-212],['card','Despesa<br>cartão',I.card,'#ec937c',80,-168],['out','Despesa',I.arrDn,'#f37a72',124,-80]];
  m.innerHTML='<div class="ov2" data-act="fabclose"></div>'+o.map(([k,l,ic,c,dx,dy],i)=>`<button class="fo" data-act="fabgo" data-k="${k}" style="left:${cx+dx}px;top:${cy+dy}px;animation-delay:${i*30}ms"><i style="background:${c}">${ic}</i><span>${l}</span></button>`).join('')+`<button class="fx" data-act="fabclose" aria-label="Fechar" style="left:${cx}px;top:${cy}px">${I.x}</button>`}
 const A={
  fabmenu:()=>fabMenu(true),fabclose:()=>fabMenu(false),
- fabgo:d=>{fabMenu(false);if(d.k==='card'){if(!S.cards.length){toast('Cadastre um cartão primeiro');return formCard()}return A.newtx({card:S.cards[0].id})}A.newtx({kind:d.k})},
+ fabgo:d=>{fabMenu(false);if(d.k==='quick')return openQuick();if(d.k==='card'){if(!S.cards.length){toast('Cadastre um cartão primeiro');return formCard()}return A.newtx({card:S.cards[0].id})}A.newtx({kind:d.k})},
  go:d=>go(d.go),
  logodel:d=>{const i=document.getElementById(d.id);if(i)i.value='';const p=document.getElementById(d.id+'_pv');if(p)p.innerHTML='<span class="av" style="background:var(--line)">—</span>'},
  gotx:d=>{ui.txf=d.k;ui.txq='';ui.txsrc='';go('transacoes')},
@@ -673,7 +673,7 @@ const CHG={
  hide:el=>{hideVals=el.checked;try{localStorage.setItem('fort.hide',hideVals?'1':'0')}catch(e){}render()},
  receipt:el=>readReceipt(el.files[0]),
  logo:el=>{const f=el.files[0];if(f)logoFromFile(f,el.dataset.id);el.value=''},
- impcsv:el=>{const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const buf=new Uint8Array(r.result);let s=new TextDecoder('utf-8').decode(buf);if(s.includes('\ufffd'))s=new TextDecoder('windows-1252').decode(buf);if(/<OFX>|OFXHEADER/i.test(s))handleOFX(s);else handleImport(s)};r.readAsArrayBuffer(f);el.value=''},
+ impcsv:el=>{const f=el.files[0];if(!f)return;ui.impPdf=null;ui.impRaw=null;if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){el.value='';return handlePDF(f)}const r=new FileReader();r.onload=()=>{const buf=new Uint8Array(r.result);let s=new TextDecoder('utf-8').decode(buf);if(s.includes('\ufffd'))s=new TextDecoder('windows-1252').decode(buf);if(/<OFX>|OFXHEADER/i.test(s))handleOFX(s);else handleImport(s)};r.readAsArrayBuffer(f);el.value=''},
  restore:el=>{const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=async()=>{try{const o=JSON.parse(String(r.result));if(o.app!=='bolso'&&o.app!=='fort')throw 0;const n=COLS.reduce((s,c)=>s+(Array.isArray(o[c])?o[c].length:0),0);if(!(await confirmBox(`Restaurar ${n} itens do backup? Itens com o mesmo código serão substituídos.`,'Restaurar')))return;COLS.forEach(c=>(o[c]||[]).forEach(x=>x&&x.id&&put(c,x)));toast('Backup restaurado')}catch(e){toast('Arquivo de backup inválido')}};r.readAsText(f)}
 };
 const INP={
