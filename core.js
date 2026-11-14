@@ -472,6 +472,9 @@ function parcPlan(d){const v=parseMoney(d.amount);const n=Math.max(2,Math.min(12
  const total=d.pmode==='parcela'?r2(v*n):r2(v);const per=Math.floor(total/n*100)/100;const last=r2(total-per*(n-1));const rest=r2(per*(n-k-1)+last);return{n,k,total,per,last,rest,ok:v>0}}
 function parcHint(d){const p=parcPlan(d);if(!p.ok)return d.pmode==='parcela'?'Digite o valor de cada parcela':'Digite o valor total da compra';
  return `${p.n}× de ${moneyRaw(p.per)} · total ${moneyRaw(p.total)}`+(p.k?` · ${p.k} já paga${p.k>1?'s':''}, faltam ${p.n-p.k} (${moneyRaw(p.rest)})`:'')}
+// O que a data significa: compra (cartão), pagamento/recebimento (já pago) ou vencimento/previsão (a pagar)
+function txDateLabel(d){if(!d.id&&d.repeat==='parcel'&&+d.paidN>0)return 'Próxima parcela';if(d.kind==='transfer')return 'Data';if(String(d.src).startsWith('c:'))return 'Data da compra';
+ if(d.kind==='in')return d.paid?'Data do recebimento':'Previsão de recebimento';return d.paid?'Data do pagamento':'Vencimento'}
 function syncDraft(){const d=draft;if(!d)return;const g=id=>document.getElementById(id);if(g('tx_amt'))d.amount=g('tx_amt').value;if(g('tx_desc'))d.desc=g('tx_desc').value;if(g('tx_date'))d.date=g('tx_date').value||today();if(g('tx_src'))d.src=g('tx_src').value;if(g('tx_to'))d.to=g('tx_to').value;if(g('tx_paid'))d.paid=g('tx_paid').checked;if(g('tx_n'))d.n=g('tx_n').value;if(g('tx_paidn'))d.paidN=g('tx_paidn').value;if(g('tx_note'))d.note=g('tx_note').value;if(g('tx_split'))d.split=g('tx_split').checked;if(g('tx_payer'))d.payer=g('tx_payer').value;if(g('tx_rate'))d.rate=g('tx_rate').value;if(g('tx_iof'))d.iof=g('tx_iof').checked}
 function renderTx(){const d=draft,isNew=!d.id;const isCard=d.src.startsWith('c:');const cards=d.kind==='out'?S.cards:[];
  if(isCard&&d.kind!=='out')d.src=activeAccs()[0]?'a:'+activeAccs()[0].id:'';
@@ -486,12 +489,12 @@ function renderTx(){const d=draft,isNew=!d.id;const isCard=d.src.startsWith('c:'
  <div class="seg">${[['out','Despesa'],['in','Receita'],['transfer','Transferência']].map(([k,l])=>`<button class="${d.kind===k?'on '+k:''}" data-act="txkind" data-k="${k}">${l}</button>`).join('')}</div>
  <div class="amtrow">${curSelect(d)}<input id="tx_amt" class="amount-in ${d.kind==='in'?'pos':d.kind==='out'?'neg':''}" inputmode="decimal" placeholder="${curPh(d.cur)}" value="${esc(d.amount)}" autofocus aria-label="Valor" data-inp="txamt"></div>${fxBox(d)}
  ${d.kind!=='transfer'?`<label class="fl"><span>Descrição</span><input id="tx_desc" value="${esc(d.desc)}" placeholder="${d.kind==='in'?'Ex.: Salário':'Ex.: Mercado do mês'}"></label>`:''}
- <div class="grid2"><label class="fl"><span>${isNew&&d.repeat==='parcel'&&+d.paidN>0?'Próxima parcela':'Data'}</span><input id="tx_date" type="date" value="${esc(d.date)}" data-chg="txdate"></label>
+ <div class="grid2"><label class="fl"><span id="tx_datelbl">${txDateLabel(d)}</span><input id="tx_date" type="date" value="${esc(d.date)}" data-chg="txdate"></label>
  <label class="fl"><span>${d.kind==='transfer'?'De':d.kind==='out'?'Conta ou cartão':'Conta'}</span><select id="tx_src" data-chg="txsrc2">${accOpts}${cardOpts?`<optgroup label="Cartões">${cardOpts}</optgroup>`:''}</select>${invHint}</label></div>
  ${d.kind==='transfer'?`<label class="fl"><span>Para</span><select id="tx_to"><option value="">Escolha a conta</option>${S.accounts.filter(a=>'a:'+a.id!==d.src&&(!a.archived||a.id===d.to)).map(a=>`<option value="${a.id}" ${d.to===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></label>`:
  `<div class="fl"><span>Categoria</span><div class="catgrid">${cats.map(c=>`<button class="catbtn ${d.cat===c.id?'on':''}" data-act="txcat" data-id="${c.id}">${ib(c.emoji,c.color,'sm')}<span>${esc(c.name)}</span></button>`).join('')}</div>${cats.length?'':'<em>Nenhuma categoria. Crie em Mais › Categorias.</em>'}</div>`}
  ${S.tags.length&&d.kind!=='transfer'?`<div class="fl"><span>Tags</span><div class="chips">${S.tags.map(g=>`<button class="chip ${d.tags.includes(g.id)?'on':''}" data-act="txtag" data-id="${g.id}">#${esc(g.name)}</button>`).join('')}</div></div>`:''}
- ${!d.src.startsWith('c:')?`<label class="sw"><span>${d.kind==='in'?'Já recebi':d.kind==='transfer'?'Já transferi':'Já paguei'}</span><input type="checkbox" id="tx_paid" ${d.paid?'checked':''}><i></i></label>`:''}
+ ${!d.src.startsWith('c:')?`<label class="sw"><span>${d.kind==='in'?'Já recebi':d.kind==='transfer'?'Já transferi':'Já paguei'}</span><input type="checkbox" id="tx_paid" data-chg="txpaid" ${d.paid?'checked':''}><i></i></label>`:''}
  ${isNew&&d.kind!=='transfer'?`<div class="fl"><span>Repetir</span><div class="seg">${[['none','Não repetir'],['parcel','Parcelado'],['fixed','Fixo mensal']].map(([k,l])=>`<button class="${d.repeat===k?'on':''}" data-act="txrep" data-k="${k}">${l}</button>`).join('')}</div></div>
  ${d.repeat==='parcel'?`<div class="fl"><span>O valor digitado é</span><div class="seg">${[['total','Total da compra'],['parcela','Valor da parcela']].map(([k,l])=>`<button class="${(d.pmode||'total')===k?'on':''}" data-act="txpmode" data-k="${k}">${l}</button>`).join('')}</div></div>
  <div class="grid2"><label class="fl"><span>Total de parcelas</span><input id="tx_n" type="number" min="2" max="120" value="${n}" data-inp="txn"></label><label class="fl"><span>Já pagas</span><input id="tx_paidn" type="number" min="0" max="119" value="${+d.paidN||0}" data-inp="txn"></label></div>
@@ -674,7 +677,8 @@ const A={
 const CHG={
  txsrc:el=>{ui.txsrc=el.value;render()},
  txsrc2:()=>{syncDraft();renderTx()},
- txdate:el=>{syncDraft();if(!/^\d{4}-\d{2}-\d{2}$/.test(el.value)||el.value<'1990')return;draft.paid=el.value<=today();const p=$('#tx_paid');if(p)p.checked=draft.paid;
+ txpaid:()=>{syncDraft();const l=$('#tx_datelbl');if(l)l.textContent=txDateLabel(draft)},
+ txdate:el=>{syncDraft();if(!/^\d{4}-\d{2}-\d{2}$/.test(el.value)||el.value<'1990')return;draft.paid=el.value<=today();const p=$('#tx_paid');if(p)p.checked=draft.paid;{const l=$('#tx_datelbl');if(l)l.textContent=txDateLabel(draft)}
   const h=$('#tx_invhint');if(h&&draft.src.startsWith('c:')){const c=byId('cards',draft.src.slice(2));if(c)h.textContent='Entra na fatura de '+monthLabel(invoiceMonthFor(c,el.value))+(draft.repeat==='parcel'?' (1ª parcela)':'')}
   const fx=$('#tx_fixhint');if(fx)fx.textContent='Vai se repetir todo dia '+(+el.value.slice(8,10))+' e aparece em Recorrências.'},
  range:el=>{ui.range=+el.value;render()},
