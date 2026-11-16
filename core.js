@@ -135,9 +135,12 @@ function accDelta(t,id){
  if(t.kind==='transfer'){if(t.accountId===id)return -t.amount;if(t.toAccountId===id)return t.amount}
  if(t.kind==='invpay'&&t.accountId===id)return -t.amount;
  return 0}
-function accBalance(a,until,withPending){let b=(a.since&&ymOf(until)<a.since)?0:(+a.initial||0);for(const t of S.tx){if(t.date>until)continue;if(!withPending&&!t.paid)continue;b+=accDelta(t,a.id)}if(withPending)b-=unpaidInvoicesFor(a.id,ymOf(until));return r2(b)}
+// Saldo real: tudo dos meses anteriores conta como feito (mesmo sem marcar "pago"); no mês atual só o que já foi pago/recebido.
+function accBalance(a,until,withPending){const m0=curYm()+'-01';let b=(a.since&&ymOf(until)<a.since)?0:(+a.initial||0);for(const t of S.tx){if(t.date>until)continue;if(!withPending&&!t.paid&&t.date>=m0)continue;b+=accDelta(t,a.id)}if(withPending)b-=unpaidInvoicesFor(a.id,ymOf(until));else{const lim=addMonths(curYm(),-1),u=ymOf(until);b-=unpaidInvoicesFor(a.id,u<lim?u:lim)}return r2(b)}
+// Lançamentos sem conta (fora de cartão) também entram no saldo total
+function noAccBalance(until,withPending){const m0=curYm()+'-01';let b=0;for(const t of S.tx){if(t.cardId||t.accountId||(t.kind!=='in'&&t.kind!=='out'))continue;if(t.date>until)continue;if(!withPending&&!t.paid&&t.date>=m0)continue;b+=t.kind==='in'?t.amount:-t.amount}return r2(b)}
 const activeAccs=()=>S.accounts.filter(a=>!a.archived).sort((a,b)=>String(a.name).localeCompare(b.name));
-function totalBalance(ym,withPending){return sum(S.accounts,a=>accBalance(a,endOf(ym),withPending))}
+function totalBalance(ym,withPending){return r2(sum(S.accounts,a=>accBalance(a,endOf(ym),withPending))+noAccBalance(endOf(ym),withPending))}
 const expInMonth=(t,ym)=>t.kind==='out'&&(t.cardId?t.inv===ym:ymOf(t.date)===ym);
 const isVR=id=>byId('accounts',id)?.type==='alimentacao';
 const incInMonth=(t,ym)=>t.kind==='in'&&!t.cardId&&ymOf(t.date)===ym&&!isVR(t.accountId);
@@ -223,7 +226,7 @@ function onboarding(){const hasCat=S.categories.length>0,hasAcc=S.accounts.lengt
 
 V.inicio=()=>{const ym=ui.month,end=endOf(ym);const accs=activeAccs();
  const rows=accs.map(a=>({a,real:accBalance(a,end,false),prev:accBalance(a,end,true)}));
- const totR=sum(S.accounts,a=>accBalance(a,end,false)),totP=sum(S.accounts,a=>accBalance(a,end,true));
+ const totR=totalBalance(ym,false),totP=totalBalance(ym,true);
  const ms=monthSummary(ym);
  const pagar=sum(S.tx.filter(t=>t.kind==='out'&&!t.cardId&&!t.paid&&ymOf(t.date)===ym),t=>t.amount);
  const receber=sum(S.tx.filter(t=>t.kind==='in'&&!t.cardId&&!t.paid&&ymOf(t.date)===ym),t=>t.amount);

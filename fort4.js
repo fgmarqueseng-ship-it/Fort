@@ -18,9 +18,8 @@ function monthCarry(ym){ensureCarryFrom();const from=carryFrom()||curYm();if(app
  const k=S.tx.length+'|'+from+'|'+(S.tx[S.tx.length-1]?.id||'');if(k!==carryKey){carryKey=k;carryCache.clear()}
  if(carryCache.has(ym))return carryCache.get(ym);
  let c=0,m=from,g=0;while(m<ym&&g++<600){c+=monthSummary(m).bal;m=addMonths(m,1)}c=r2(c);carryCache.set(ym,c);return c}
-function heroCarry(ym,ms){if(appCfg().carryOff)return `<button class="click" data-act="go" data-go="orcamento"><small>Balanço</small><b class="${ms.bal<0?'neg':'pos'}">${money(ms.bal)}</b></button>`;
- const c=monthCarry(ym),fin=r2(c+ms.bal);
- return `<button class="click" data-act="go" data-go="orcamento" title="Sobra do mês anterior ${moneyRaw(c)} + receitas − despesas"><small>${fin<0?'Déficit':'Sobra'} do mês</small><b class="${fin<0?'neg':'pos'}">${money(fin)}</b>${c?`<em class="hero-carry">${c<0?'déficit':'sobra'} anterior ${money(c)}</em>`:''}</button>`}
+function heroCarry(ym,ms){// Só o resultado deste mês (receitas − despesas). O acumulado fica no saldo e na tela Orçamento.
+ return `<button class="click" data-act="go" data-go="orcamento" title="Receitas − despesas deste mês"><small>${ms.bal<0?'Déficit':'Sobra'} do mês</small><b class="${ms.bal<0?'neg':'pos'}">${money(ms.bal)}</b></button>`}
 
 // Orçamento por categoria com sobra acumulada (também acumula o estouro, que diminui o mês seguinte)
 const budSpentCache=new Map();let budKey='';
