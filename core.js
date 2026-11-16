@@ -335,8 +335,21 @@ V.projecoes=()=>{const cur=ymOf(today());const months=range(addMonths(cur,5),6);
  <div class="card mb">${lineChart(rows.map(r=>({label:monShort(r.m),v:r.end})))}</div>
  <div class="card scroll-x"><table class="tb"><tr><th>Mês</th><th>Receitas</th><th>Despesas</th>${ui.projVar?'<th>Variável</th>':''}<th>Saldo final</th></tr>${rows.map(r=>`<tr><td>${monYr(r.m)}</td><td class="pos">${money(r.inc)}</td><td class="neg">${money(r.exp)}</td>${ui.projVar?`<td class="mut">${r.extra?money(r.extra):'—'}</td>`:''}<td class="${r.end<0?'neg':''}"><b>${money(r.end)}</b></td></tr>`).join('')}</table></div>`};
 
-V.recorrencias=()=>header('Recorrências',{back:'mais',actions:`<button class="btn primary" data-act="newrec">${I.plus} Nova</button>`})+`<div class="banner info">Contas fixas que se repetem todo mês (aluguel, internet, salário, assinaturas). O app lança automaticamente os próximos 12 meses como pendentes.</div>
- <div class="list">${S.recurrences.slice().sort((a,b)=>(a.day||0)-(b.day||0)).map(r=>{const c=byId('categories',r.categoryId)||{emoji:'🔁',color:'#efb34d',name:''};return `<button class="row" data-act="rec" data-id="${r.id}">${ib(c.emoji,c.color)}<div class="t"><b>${esc(r.desc||c.name)}</b><small>Todo dia ${r.day} · ${esc(r.cardId?byId('cards',r.cardId)?.name||'Cartão':byId('accounts',r.accountId)?.name||'Conta')}${r.end?' · até '+monYr(r.end):''}${r.active===false?' · pausada':''}</small></div><div class="amt"><b class="${r.kind==='in'?'pos':'neg'}">${money(r.amount)}</b></div></button>`}).join('')||'<div class="empty">Nenhuma recorrência. Dica: ao lançar uma despesa, escolha "Fixo mensal".</div>'}</div>`;
+V.recorrencias=()=>{const cur=curYm();const isEnded=r=>r.active===false||(r.end&&r.end<cur);
+ const row=r=>{const c=byId('categories',r.categoryId)||{emoji:'🔁',color:'#efb34d',name:''};const ended=isEnded(r);
+  return `<button class="row" data-act="rec" data-id="${r.id}" ${ended?'style="opacity:.62"':''}>${ib(c.emoji,c.color)}<div class="t"><b>${esc(r.desc||c.name)}</b><small>${ended?(r.active===false?'Pausada':'Encerrada em '+monYr(r.end)):'Todo dia '+r.day+(r.end?' · até '+monYr(r.end):'')} · ${esc(r.cardId?byId('cards',r.cardId)?.name||'Cartão':byId('accounts',r.accountId)?.name||'Conta')}</small></div><div class="amt"><b class="${r.kind==='in'?'pos':'neg'}">${money(r.amount)}</b></div></button>`};
+ const all=S.recurrences.slice().sort((a,b)=>(a.day||0)-(b.day||0));const act=all.filter(r=>!isEnded(r)),old=all.filter(isEnded);
+ return header('Recorrências',{back:'mais',actions:`<button class="btn primary" data-act="newrec">${I.plus} Nova</button>`})+`<div class="banner info">Contas fixas que se repetem todo mês (aluguel, internet, salário, assinaturas). O app lança automaticamente os próximos 12 meses como pendentes. Para parar uma, abra e toque em “Encerrar”: o histórico continua.</div>
+ ${sec('Ativas'+(act.length?' · '+act.length:''))}<div class="list mb">${act.map(row).join('')||'<div class="empty">Nenhuma recorrência ativa. Dica: ao lançar uma despesa, escolha "Fixo mensal".</div>'}</div>
+ ${old.length?sec('Encerradas e pausadas · '+old.length)+`<div class="list">${old.map(row).join('')}</div>`:''}`};
+
+// Encerrar: o histórico fica; somem só os meses depois do último
+function recEnd(r,endYm){const td=today();put('recurrences',{...r,end:endYm});
+ S.tx.filter(x=>x.recurId===r.id&&ymOf(x.date)>endYm&&(!x.paid||(x.cardId&&x.date>=td))).forEach(x=>del('tx',x.id))}
+// Reativar: volta a lançar a partir deste mês, sem cobrar os meses em que ficou parada
+function recReactivate(r){const cur=curYm();const skip=[...(r.skip||[])];let ym=ymOf(r.start||today()),g=0;
+ while(ym<cur&&g++<400){if(!byId('tx','r_'+r.id+'_'+ym)&&!skip.includes(ym))skip.push(ym);ym=addMonths(ym,1)}
+ const nr={...r,end:'',active:true,skip};put('recurrences',nr);genRecurrence(nr,horizon()).forEach(t=>put('tx',t))}
 
 V.parcelamentos=()=>{const groups=new Map();for(const t of S.tx){if(!t.group)continue;const g=groups.get(t.group)||[];g.push(t);groups.set(t.group,g)}
  const td=today();const list=[...groups.values()].map(items=>{items.sort((a,b)=>a.inst.n-b.inst.n);const f=items[0];const of=f.inst?.of||items.length;const done=(+f.paidBefore||Math.max(0,(f.inst?.n||1)-1))+items.filter(t=>t.cardId?t.date<=td:t.paid).length;const restante=sum(items.filter(t=>t.cardId?t.date>td:!t.paid),t=>t.amount);return{f,items,of,done,restante,total:+f.total||sum(items,t=>t.amount),last:items[items.length-1].date}});
@@ -552,7 +565,8 @@ function formGoal(g){const saved=g?sum(g.moves||[],m=>m.amount):0;openForm({titl
  fields:[{k:'name',label:'Nome',req:1,ph:'Ex.: Reserva de emergência'},{k:'target',label:'Meta (opcional)',type:'money'},{k:'deadline',label:'Prazo (opcional)',type:'date'},{k:'emoji',label:'Ícone',type:'emoji'},{k:'color',label:'Cor',type:'color'}],
  onSave:v=>put('goals',{moves:[],...(g||{id:uid()}),...v}),onDelete:g?()=>del('goals',g.id):null})}
 function formRec(r){const src=r?(r.cardId?'c:'+r.cardId:'a:'+r.accountId):(activeAccs()[0]?'a:'+activeAccs()[0].id:'');
- openForm({title:r?'Editar recorrência':'Nova recorrência',values:r?{...r,src,start:r.start}:{kind:'out',src,start:today(),active:true},
+ const ended=r&&(r.active===false||(r.end&&r.end<curYm()));
+ openForm({title:r?'Editar recorrência':'Nova recorrência',intro:r?(ended?`<div class="card sw"><span class="muted" style="font-size:13.5px">${r.active===false?'Pausada':'Encerrada em '+monthLabel(r.end)}. O histórico continua salvo.</span><button class="btn primary sm" data-act="recreact" data-id="${r.id}">Reativar</button></div>`:`<div class="card sw"><span class="muted" style="font-size:13.5px">Não vai mais pagar? Encerre e o histórico continua salvo.</span><button class="btn sm" data-act="recend" data-id="${r.id}">Encerrar</button></div>`):'',values:r?{...r,src,start:r.start}:{kind:'out',src,start:today(),active:true},
  fields:[{k:'desc',label:'Descrição',req:1,ph:'Ex.: Aluguel, Internet, Salário'},{k:'kind',label:'Tipo',type:'select',options:[{v:'out',l:'Despesa'},{v:'in',l:'Receita'}]},{k:'amount',label:'Valor',type:'money',req:1},{k:'src',label:'Conta ou cartão',type:'select',options:()=>[...S.accounts.filter(a=>!a.archived).map(a=>({v:'a:'+a.id,l:a.name})),...S.cards.map(c=>({v:'c:'+c.id,l:'💳 '+c.name}))]},{k:'categoryId',label:'Categoria',type:'select',options:()=>[...catOptions('out'),...catOptions('in','—').slice(1)]},{k:'start',label:'Primeiro lançamento',type:'date',req:1,hint:'O dia desta data se repete todo mês'},{k:'end',label:'Último mês (opcional)',type:'month'},{k:'active',label:'Ativa',type:'toggle'}],
  onSave:async v=>{const[st,sid]=(v.src||'').split(':');if(!sid){toast('Escolha a conta');return false}if(st==='c'&&v.kind==='in'){toast('Receita não pode ir para cartão');return false}
   const nr={skip:[],...(r||{id:uid()}),desc:v.desc,kind:v.kind,amount:v.amount,categoryId:v.categoryId||null,start:v.start,day:+v.start.slice(8,10),end:v.end||'',active:v.active,accountId:st==='a'?sid:null,cardId:st==='c'?sid:null};
@@ -658,6 +672,10 @@ const A={
  newgoal:()=>formGoal(),goal:d=>formGoal(byId('goals',d.id)),
  goalmove:d=>{const g=byId('goals',d.id);const out=d.k==='out';openForm({title:out?'Retirar da '+g.name:'Guardar em '+g.name,values:{date:today()},fields:[{k:'amount',label:'Valor',type:'money',req:1,focus:1},{k:'date',label:'Data',type:'date'},{k:'note',label:'Observação',ph:'Opcional'}],onSave:v=>{put('goals',{...g,moves:[...(g.moves||[]),{amount:out?-v.amount:v.amount,date:v.date||today(),note:v.note}]});toast(out?'Retirada registrada':'Valor guardado')}})},
  newrec:()=>formRec(),rec:d=>formRec(byId('recurrences',d.id)),
+ recend:async d=>{const r=byId('recurrences',d.id);if(!r)return;const cur=curYm(),prev=addMonths(cur,-1);
+  const k=await choiceBox('Encerrar recorrência',`Qual foi o último mês de “${r.desc||'recorrência'}”? Os lançamentos anteriores continuam no histórico.`,[['cur','Último: '+monthLabel(cur),'primary'],['prev',`Último: ${monthLabel(prev)} (sem ${monthLabel(cur)})`]]);if(!k)return;
+  const end=k==='cur'?cur:(r.start&&ymOf(r.start)>prev?ymOf(r.start):prev);recEnd(r,end);closeModal();render();toast('Recorrência encerrada. O histórico foi mantido.')},
+ recreact:d=>{const r=byId('recurrences',d.id);if(!r)return;recReactivate(r);closeModal();render();toast('Recorrência reativada a partir de '+monthLabel(curYm()))},
  parctab:d=>{ui.parcTab=d.k;render()},
  newloan:d=>formLoan(null,d.k),loan:d=>formLoan(byId('loans',d.id)),
  newdebt:()=>formDebt(),debt:d=>formDebt(byId('debts',d.id)),
