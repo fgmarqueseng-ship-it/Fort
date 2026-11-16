@@ -65,6 +65,18 @@
       ]
     },
     {
+      "name": "Ler cupom fiscal",
+      "short_name": "Cupom",
+      "url": "./?acao=cupom",
+      "icons": [
+        {
+          "src": "icons/sc-despesa.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
       "name": "Buscar lançamentos",
       "short_name": "Buscar",
       "url": "./?acao=buscar",

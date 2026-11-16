@@ -199,7 +199,7 @@ const MORE=[
  ['Planejar',[['patrimonio','Patrimônio','🏛️','#3ccf91'],['investimentos','Investimentos','📈','#3ccf91'],['reserva','Reserva de emergência','🛟','#3ccf91'],['calendario','Calendário','📅','#3ccf91'],['projecoes','Projeção de longo prazo','🔭','#3ccf91'],['orcamento','Orçamento','🥧','#3ccf91'],['metas','Metas e caixinhas','🎯','#3ccf91']]],
  ['Acompanhar',[['assinaturas','Assinaturas','📺','#efb34d'],['recorrencias','Recorrências','🔁','#efb34d'],['parcelamentos','Parcelamentos','🧩','#efb34d'],['financiamentos','Financiamentos','🏦','#efb34d'],['emprestimos','Empréstimos','🤝','#efb34d'],['quem-me-deve','Quem me deve','💸','#efb34d']]],
  ['Analisar',[['analise','Análise do mês','📊','#6d9be0'],['relatorio','Relatório personalizado','📄','#6d9be0'],['avancados','Relatórios avançados','🗂️','#6d9be0']]],
- ['Ferramentas',[['importar-exportar','Importar e exportar','📁','#e08a6d'],['ajustes','Ajustes e perfil','⚙️','#e08a6d']]]
+ ['Ferramentas',[['cupom','Ler cupom fiscal','🧾','#e08a6d'],['importar-exportar','Importar e exportar','📁','#e08a6d'],['ajustes','Ajustes e perfil','⚙️','#e08a6d']]]
 ];
 const MAIN=['inicio','transacoes','investimentos','mais'];
 
@@ -621,11 +621,11 @@ async function readReceipt(file){if(!file)return;ui.rcptMsg='<div class="loading
 /* ================= ações ================= */
 function fabMenu(open){const m=$('#fabm');if(!m)return;if(!open){m.innerHTML='';return}
  const f=document.querySelector('.bottom .fab');if(!f)return A.newtx({});const r=f.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
- const o=[['transfer','Transferir',I.swap,'#4fb3bf',-124,-80],['in','Receita',I.arrUp,'#3ccf91',-80,-168],['quick','Rápido<br>ou voz',ICQ,'#9b8cff',0,-212],['card','Despesa<br>cartão',I.card,'#ec937c',80,-168],['out','Despesa',I.arrDn,'#f37a72',124,-80]];
+ const o=[['transfer','Transferir',I.swap,'#4fb3bf',-134,-58],['in','Receita',I.arrUp,'#3ccf91',-104,-158],['quick','Rápido<br>ou voz',ICQ,'#9b8cff',-36,-226],['cupom','Ler<br>cupom',typeof ICCUPOM!=='undefined'?ICCUPOM:'🧾','#e3b341',36,-226],['card','Despesa<br>cartão',I.card,'#ec937c',104,-158],['out','Despesa',I.arrDn,'#f37a72',134,-58]];
  m.innerHTML='<div class="ov2" data-act="fabclose"></div>'+o.map(([k,l,ic,c,dx,dy],i)=>`<button class="fo" data-act="fabgo" data-k="${k}" style="left:${cx+dx}px;top:${cy+dy}px;animation-delay:${i*30}ms"><i style="background:${c}">${ic}</i><span>${l}</span></button>`).join('')+`<button class="fx" data-act="fabclose" aria-label="Fechar" style="left:${cx}px;top:${cy}px">${I.x}</button>`}
 const A={
  fabmenu:()=>fabMenu(true),fabclose:()=>fabMenu(false),
- fabgo:d=>{fabMenu(false);if(d.k==='quick')return openQuick();if(d.k==='card'){if(!S.cards.length){toast('Cadastre um cartão primeiro');return formCard()}return A.newtx({card:S.cards[0].id})}A.newtx({kind:d.k})},
+ fabgo:d=>{fabMenu(false);if(d.k==='quick')return openQuick();if(d.k==='cupom')return openCupom();if(d.k==='card'){if(!S.cards.length){toast('Cadastre um cartão primeiro');return formCard()}return A.newtx({card:S.cards[0].id})}A.newtx({kind:d.k})},
  go:d=>go(d.go),
  logodel:d=>{const i=document.getElementById(d.id);if(i)i.value='';const p=document.getElementById(d.id+'_pv');if(p)p.innerHTML='<span class="av" style="background:var(--line)">—</span>'},
  gotx:d=>{ui.txf=d.k;ui.txq='';ui.txsrc='';go('transacoes')},

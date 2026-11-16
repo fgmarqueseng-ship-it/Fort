@@ -146,7 +146,7 @@ function gsUpdate(){const box=$('#gs_out');if(!box)return;const q=norm($('#gs_in
 function runLaunchAction(){const q=new URLSearchParams(location.search);const a=q.get('acao');if(!a)return;
  const clear=()=>{try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}};
  let tries=0;const t=setInterval(()=>{tries++;if(tries>80){clearInterval(t);clear();return}if(mode!=='db'||locked)return;clearInterval(t);clear();
-  if(a==='despesa')A.newtx({kind:'out'});else if(a==='receita')A.newtx({kind:'in'});else if(a==='cartao')A.fabgo({k:'card'});else if(a==='rapido')openQuick();else if(a==='voz'){openQuick();setTimeout(qkMic,350)}else if(a==='buscar')openSearch();else if(a==='saldo')go('inicio')},250)}
+  if(a==='despesa')A.newtx({kind:'out'});else if(a==='receita')A.newtx({kind:'in'});else if(a==='cartao')A.fabgo({k:'card'});else if(a==='rapido')openQuick();else if(a==='cupom')openCupom();else if(a==='voz'){openQuick();setTimeout(qkMic,350)}else if(a==='buscar')openSearch();else if(a==='saldo')go('inicio')},250)}
 
 /* ---------------- assinaturas e cobranças que se repetem ---------------- */
 const SUB_SVC=/netflix|spotify|prime|amazon|disney|hbo|\bmax\b|globoplay|youtube|deezer|apple|icloud|google|microsoft|office|xbox|playstation|psn|chatgpt|openai|claude|anthropic|adobe|canva|academia|smart ?fit|gympass|wellhub|totalpass|uber one|clube|meli|paramount|crunchyroll|tidal|kindle|audible|dropbox|notion|vivo|claro|\btim\b|\boi\b|\bnet\b|sky|starlink|assinatura|streaming|tinder|duolingo|linkedin|strava/;

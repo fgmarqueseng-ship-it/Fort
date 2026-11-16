@@ -401,3 +401,10 @@ body.light #lock{background:radial-gradient(ellipse at top,#dcf5e6 0%,#f4f6f8 65
 .impl .row{gap:10px}
 .offb{border-color:rgba(239,179,77,.4)}
 .fo i svg{width:26px;height:26px}
+
+/* leitura de cupom fiscal */
+.cpcam{position:relative;width:100%;aspect-ratio:4/3;max-height:52vh;border-radius:16px;overflow:hidden;background:#000}
+.cpcam video{width:100%;height:100%;object-fit:cover;display:block}
+.cpframe{position:absolute;left:50%;top:50%;width:62%;aspect-ratio:1;max-height:80%;transform:translate(-50%,-50%);border:3px solid rgba(255,255,255,.85);border-radius:18px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.cpcamtxt{position:absolute;left:0;right:0;bottom:10px;text-align:center;color:#fff;font-size:13px;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+.cpmore summary{cursor:pointer;color:var(--muted);font-size:13.5px;font-weight:600}

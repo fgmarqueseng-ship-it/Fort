@@ -14,3 +14,8 @@ Recursos do pacote 3:
 - Importação de fatura/extrato em PDF (`pdfparse.js` + `vendor/pdfjs`, Apache-2.0).
 - “Fique de olho” no Início e tela de Assinaturas.
 - Resumo semanal por notificação: `supabase/fort_weekly.sql` + Edge Function `supabase/fort-weekly.ts` (preencher token e chave privada no Supabase, nunca no GitHub).
+
+Leitura de cupom fiscal (`cupom.js`):
+- Botão + › Ler cupom, Mais › Ler cupom fiscal ou atalho `?acao=cupom`. Lê o QR Code pela câmera (BarcodeDetector ou `vendor/jsqr`, Apache-2.0), por foto ou link colado.
+- NFC-e: a página da nota na SEFAZ é buscada pela função `fort_nfce` (`supabase/fort_nfce.sql`); CF-e SAT: data e valor vêm do próprio QR.
+- Categoria pelas regras, pelo histórico da loja e pelo ramo do CNPJ (BrasilAPI). Itens e chave vão para a observação; um resumo em texto vai para os comprovantes.
