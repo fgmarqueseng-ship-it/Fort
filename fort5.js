@@ -18,8 +18,20 @@ function rpItems(){const rp=ui.rp,p=rpPeriod();const kinds=rp.kind==='both'?['in
  if(rp.src){const[st,id]=rp.src.split(':');items=items.filter(t=>st==='c'?t.cardId===id:t.accountId===id&&!t.cardId)}
  if(rp.cat)items=items.filter(t=>t.categoryId===rp.cat);
  if(rp.tag)items=items.filter(t=>(t.tags||[]).includes(rp.tag));
+ if(rp.st==='pagar')items=items.filter(isPend);else if(rp.st==='pagas')items=items.filter(t=>!isPend(t));
  items.sort((a,b)=>b.date.localeCompare(a.date));return{p,items}}
 
+// pendente = ainda não pago/recebido (cartão entra pela fatura, por isso fica de fora)
+const isPend=t=>!t.paid&&!t.cardId&&t.kind!=='invpay'&&(t.kind==='in'||t.kind==='out');
+const byDateAsc=arr=>[...arr].sort((a,b)=>a.date.localeCompare(b.date));
+// faixa "Já pago × A pagar" do resumo
+function pendStrip(rp,inI,outI){const po=outI.filter(isPend),pi=inI.filter(isPend);const tpo=sum(po,t=>t.amount),tpi=sum(pi,t=>t.amount);
+ const paidOut=sum(outI.filter(t=>!t.cardId&&!isPend(t)),t=>t.amount),cardOut=sum(outI.filter(t=>t.cardId),t=>t.amount);
+ const cells=[];
+ if(rp.kind!=='in')cells.push(`<div><small>Despesas pagas</small><b>${money(paidOut)}</b></div>`,`<div><small>Despesas a pagar</small><b class="warn">${money(tpo)}</b><small class="muted">${po.length} lançamento${po.length===1?'':'s'}</small></div>`);
+ if(rp.kind!=='out')cells.push(`<div><small>Receitas a receber</small><b class="warn">${money(tpi)}</b><small class="muted">${pi.length} lançamento${pi.length===1?'':'s'}</small></div>`);
+ if(rp.kind==='out'&&cardOut)cells.push(`<div><small>No cartão (vai na fatura)</small><b>${money(cardOut)}</b></div>`);
+ return `<div class="grid3 pend mt">${cells.join('')}</div>`}
 const rpPct=(v,t)=>t?(v/t*100).toFixed(1).replace('.',','):'0';
 const catList=(cats,tot,cls)=>cats.map(g=>`<div class="row">${ib(g.cat.emoji,g.cat.color,'sm')}<div class="t"><b>${esc(g.cat.name)}</b><div class="bar" style="--c:${g.cat.color}"><i style="width:${tot?g.total/tot*100:0}%"></i></div></div><div class="amt"><b class="${cls||''}">${money(g.total)}</b><small>${rpPct(g.total,tot)}%</small></div></div>`).join('');
 
@@ -28,17 +40,20 @@ V.relatorio=()=>{const rp=ui.rp;const{p,items}=rpItems();ui.rpItems=items;const 
  const sel=(k,opts)=>`<select data-chg="rp" data-k="${k}">${opts.map(([v,l])=>`<option value="${esc(v)}" ${rp[k]==v?'selected':''}>${esc(l)}</option>`).join('')}</select>`;
  const catOpts=S.categories.filter(c=>rp.kind==='both'||c.kind===rp.kind).map(c=>[c.id,(rp.kind==='both'?(c.kind==='in'?'↑ ':'↓ '):'')+c.name]);
  const dates=rp.range==='custom'?`<label class="fl" style="margin:0"><span>De</span><input type="date" data-chg="rpdate" data-k="from" value="${p.from}"></label><label class="fl" style="margin:0"><span>Até</span><input type="date" data-chg="rpdate" data-k="to" value="${p.to}"></label>`:'';
+ const strip=pendStrip(rp,inI,outI);const pendOut=byDateAsc(outI.filter(isPend)),pendIn=byDateAsc(inI.filter(isPend));
  const btns=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="pdfreport">${I.pdf} Gerar PDF</button><button class="btn" data-act="exportcsv" data-scope="report">Exportar CSV</button></div>`;
  const sumCard=rp.kind==='both'
-  ?`<div class="card mb"><div class="grid3 pend"><div><small>Receitas</small><b class="pos">${money(ti)}</b></div><div><small>Despesas</small><b class="neg">${money(to)}</b></div><div><small>Saldo</small><b class="${ti-to<0?'neg':'pos'}">${money(ti-to)}</b></div></div><div class="sw mt"><small class="muted">${esc(p.label)} · ${items.length} lançamentos</small>${btns}</div><div id="exportout"></div></div>`
-  :`<div class="card mb"><div class="sw"><div><small class="muted">Total · ${items.length} lançamentos</small><div class="big ${rp.kind==='in'?'pos':'neg'}" style="font-size:28px">${money(rp.kind==='in'?ti:to)}</div><small class="muted">${esc(p.label)} · média ${money((rp.kind==='in'?ti:to)/n)}/mês</small></div>${btns}</div><div id="exportout"></div></div>`;
+  ?`<div class="card mb"><div class="grid3 pend"><div><small>Receitas</small><b class="pos">${money(ti)}</b></div><div><small>Despesas</small><b class="neg">${money(to)}</b></div><div><small>Saldo</small><b class="${ti-to<0?'neg':'pos'}">${money(ti-to)}</b></div></div>${strip}<div class="sw mt"><small class="muted">${esc(p.label)} · ${items.length} lançamentos</small>${btns}</div><div id="exportout"></div></div>`
+  :`<div class="card mb"><div class="sw"><div><small class="muted">Total · ${items.length} lançamentos</small><div class="big ${rp.kind==='in'?'pos':'neg'}" style="font-size:28px">${money(rp.kind==='in'?ti:to)}</div><small class="muted">${esc(p.label)} · média ${money((rp.kind==='in'?ti:to)/n)}/mês</small></div>${btns}</div>${strip}<div id="exportout"></div></div>`;
+ const pendSec=(pendOut.length&&rp.kind!=='in'?sec('Despesas a pagar','',`<b class="neg">${money(sum(pendOut,t=>t.amount))}</b>`)+`<div class="list mb">${pendOut.map(t=>txRow(t,{date:true})).join('')}</div>`:'')
+  +(pendIn.length&&rp.kind!=='out'?sec('Receitas a receber','',`<b class="pos">${money(sum(pendIn,t=>t.amount))}</b>`)+`<div class="list mb">${pendIn.map(t=>txRow(t,{date:true})).join('')}</div>`:'');
  const cats=rp.kind==='both'
   ?`${sec('Receitas por categoria')}<div class="list mb">${catList(byCat(inI),ti,'pos')||'<div class="empty">Sem receitas.</div>'}</div>${sec('Despesas por categoria')}<div class="list">${catList(byCat(outI),to,'neg')||'<div class="empty">Sem despesas.</div>'}</div>`
   :`${sec('Por categoria')}<div class="list">${catList(byCat(items),rp.kind==='in'?ti:to)||'<div class="empty">Nada encontrado.</div>'}</div>`;
- return header('Relatório personalizado',{back:'mais',month:rp.range!=='custom'})+`<div class="filters">${sel('range',[['custom','Escolher datas (De / Até)'],['1','Mês selecionado'],['3','Últimos 3 meses'],['6','Últimos 6 meses'],['12','Últimos 12 meses'],['ano','Ano de '+ui.month.slice(0,4)]])}${dates}${sel('kind',[['both','Receitas e despesas'],['out','Só despesas'],['in','Só receitas']])}${sel('src',[['','Todas as contas'],...S.accounts.map(a=>['a:'+a.id,a.name]),...S.cards.map(c=>['c:'+c.id,'💳 '+c.name])])}${sel('cat',[['','Todas as categorias'],...catOpts])}${sel('tag',[['','Todas as tags'],...S.tags.map(g=>[g.id,g.name])])}</div>
+ return header('Relatório personalizado',{back:'mais',month:rp.range!=='custom'})+`<div class="filters">${sel('range',[['custom','Escolher datas (De / Até)'],['1','Mês selecionado'],['3','Últimos 3 meses'],['6','Últimos 6 meses'],['12','Últimos 12 meses'],['ano','Ano de '+ui.month.slice(0,4)]])}${dates}${sel('kind',[['both','Receitas e despesas'],['out','Só despesas'],['in','Só receitas']])}${sel('src',[['','Todas as contas'],...S.accounts.map(a=>['a:'+a.id,a.name]),...S.cards.map(c=>['c:'+c.id,'💳 '+c.name])])}${sel('cat',[['','Todas as categorias'],...catOpts])}${sel('tag',[['','Todas as tags'],...S.tags.map(g=>[g.id,g.name])])}${sel('st',[['','Pagas e a pagar'],['pagar','Só a pagar / a receber'],['pagas','Só pagas / recebidas']])}</div>
  ${sumCard}
  <div class="home"><div>${cats}</div>
- <div>${sec('Lançamentos')}<div class="list">${items.slice(0,300).map(t=>txRow(t,{date:true,check:false})).join('')||'<div class="empty">Nada encontrado.</div>'}</div>${items.length>300?'<div class="muted mt">Mostrando 300 de '+items.length+'. Exporte para ver todos.</div>':''}</div></div>`};
+ <div>${pendSec}${sec('Lançamentos')}<div class="list">${items.slice(0,300).map(t=>txRow(t,{date:true,check:false})).join('')||'<div class="empty">Nada encontrado.</div>'}</div>${items.length>300?'<div class="muted mt">Mostrando 300 de '+items.length+'. Exporte para ver todos.</div>':''}</div></div>`};
 
 Object.assign(CHG,{
  rp:el=>{const k=el.dataset.k;ui.rp[k]=el.value;if(k==='kind')ui.rp.cat='';
@@ -48,16 +63,19 @@ Object.assign(CHG,{
 
 function pdfReport(){const rp=ui.rp;const{p,items:its}=rpItems();const items=[...its].sort((a,b)=>a.date.localeCompare(b.date));const n=p.ms.length||1;
  const inI=items.filter(t=>t.kind==='in'),outI=items.filter(t=>t.kind==='out');const ti=sum(inI,t=>t.amount),to=sum(outI,t=>t.amount);
- const f=[rp.kind==='both'?'Receitas e despesas':rp.kind==='in'?'Receitas':'Despesas',rp.src?(rp.src.startsWith('c:')?byId('cards',rp.src.slice(2))?.name:byId('accounts',rp.src.slice(2))?.name):'Todas as contas',rp.cat?byId('categories',rp.cat)?.name:'Todas as categorias',rp.tag?'Tag: '+(byId('tags',rp.tag)?.name||''):''].filter(Boolean).join(' · ');
+ const f=[rp.kind==='both'?'Receitas e despesas':rp.kind==='in'?'Receitas':'Despesas',rp.src?(rp.src.startsWith('c:')?byId('cards',rp.src.slice(2))?.name:byId('accounts',rp.src.slice(2))?.name):'Todas as contas',rp.cat?byId('categories',rp.cat)?.name:'Todas as categorias',rp.tag?'Tag: '+(byId('tags',rp.tag)?.name||''):'',rp.st==='pagar'?'Só a pagar / a receber':rp.st==='pagas'?'Só pagas / recebidas':''].filter(Boolean).join(' · ');
  const catTable=(arr,tot)=>ptable(['Categoria','Lançamentos','Valor','%'],byCat(arr).map(g=>`<tr><td>${esc(g.cat.name)}</td><td>${g.items.length}</td><td class="r">${pm$(g.total)}</td><td class="r">${rpPct(g.total,tot)}%</td></tr>`),`<tr><td>Total</td><td>${arr.length}</td><td class="r">${pm$(tot)}</td><td class="r">100%</td></tr>`);
+ const pOut=outI.filter(isPend),pIn=inI.filter(isPend);const tpo=sum(pOut,t=>t.amount),tpi=sum(pIn,t=>t.amount);
+ const pendTable=(arr,tot,lbl)=>arr.length?`<h3>${lbl}</h3>`+ptable(['Vencimento','Descrição','Categoria','Conta','Valor'],arr.map(t=>{const c=catOf(t);return `<tr><td>${brDate(t.date)}${t.date<today()?' <span class="neg">(atrasado)</span>':''}</td><td>${esc(txTitle(t))}</td><td>${esc(c.name)}</td><td>${esc(srcName(t))}</td><td class="r">${pm$(t.amount)}</td></tr>`}),`<tr><td colspan="4">Total</td><td class="r">${pm$(tot)}</td></tr>`):'';
+ const pendBlock=(rp.kind!=='in'?pendTable(pOut,tpo,'Despesas a pagar'):'')+(rp.kind!=='out'?pendTable(pIn,tpi,'Receitas a receber'):'');
  const inMonth=(arr,m)=>sum(arr.filter(t=>ymOf(t.date)===m),t=>t.amount);
  let body;
  if(rp.kind==='both'){
-  body=pkpis([['Receitas',pm$(ti),'pos'],['Despesas',pm$(to),'neg'],['Saldo',pm$(ti-to),ti-to<0?'neg':'pos'],['Lançamentos',String(items.length)]])+
+  body=pkpis([['Receitas',pm$(ti),'pos'],['Despesas',pm$(to),'neg'],['Saldo',pm$(ti-to),ti-to<0?'neg':'pos'],['Despesas a pagar',pm$(tpo),'neg'],['Receitas a receber',pm$(tpi),'pos'],['Lançamentos',String(items.length)]])+pendBlock+
    `<h3>Receitas por categoria</h3>`+catTable(inI,ti)+`<h3>Despesas por categoria</h3>`+catTable(outI,to)+
    `<h3>Por mês</h3>`+ptable(['Mês','Receitas','Despesas','Saldo'],p.ms.map(m=>{const a=inMonth(inI,m),b=inMonth(outI,m);return `<tr><td>${monthLabel(m)}</td><td class="r pos">${pm$(a)}</td><td class="r neg">${pm$(b)}</td><td class="r ${a-b<0?'neg':''}">${pm$(a-b)}</td></tr>`}),`<tr><td>Total</td><td class="r">${pm$(ti)}</td><td class="r">${pm$(to)}</td><td class="r">${pm$(ti-to)}</td></tr>`);
  }else{const tot=rp.kind==='in'?ti:to;const cats=byCat(items);
-  body=pkpis([['Total',pm$(tot),rp.kind==='in'?'pos':'neg'],['Lançamentos',String(items.length)],['Média por mês',pm$(tot/n)],['Maior categoria',cats[0]?esc(cats[0].cat.name):'—']])+
+  body=pkpis([['Total',pm$(tot),rp.kind==='in'?'pos':'neg'],['Lançamentos',String(items.length)],['Média por mês',pm$(tot/n)],['Maior categoria',cats[0]?esc(cats[0].cat.name):'—'],rp.kind==='in'?['A receber',pm$(tpi),'pos']:['A pagar',pm$(tpo),'neg']])+pendBlock+
    `<h3>Por categoria</h3>`+catTable(items,tot)+`<h3>Por mês</h3>`+ptable(['Mês','Valor'],p.ms.map(m=>`<tr><td>${monthLabel(m)}</td><td class="r">${pm$(inMonth(items,m))}</td></tr>`));
  }
  const last=rp.kind==='both'?`<tr><td colspan="5">Saldo</td><td class="r">${pm$(ti-to)}</td></tr>`:`<tr><td colspan="5">Total</td><td class="r">${pm$(rp.kind==='in'?ti:to)}</td></tr>`;
