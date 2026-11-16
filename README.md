@@ -19,3 +19,10 @@ Leitura de cupom fiscal (`cupom.js`):
 - Botão + › Ler cupom, Mais › Ler cupom fiscal ou atalho `?acao=cupom`. Lê o QR Code pela câmera (BarcodeDetector ou `vendor/jsqr`, Apache-2.0), por foto ou link colado.
 - NFC-e: a página da nota na SEFAZ é buscada pela função `fort_nfce` (`supabase/fort_nfce.sql`); CF-e SAT: data e valor vêm do próprio QR.
 - Categoria pelas regras, pelo histórico da loja e pelo ramo do CNPJ (BrasilAPI). Itens e chave vão para a observação; um resumo em texto vai para os comprovantes.
+
+Pacote 4 (`fort4.js`):
+- Visual: saldo em destaque no Início, destaque verde, sem cifrão no fundo (opcional em Ajustes), filtros em uma linha, Mais em blocos.
+- Sobra acumulada: resultado do mês (receitas − despesas, positivo ou negativo) passa para o mês seguinte (`settings.app.carryFrom`/`carryOff`); limites do orçamento acumulam sobra e estouro (`budget.roll`/`since`).
+- Caixa de entrada: notificações do banco no Android via MacroDroid → `fort_inbox_add` (`supabase/fort_inbox.sql`); lançar com um toque ou automático.
+- Dividir lançamento em categorias (`splitGroup`) e edição em massa em Transações.
+- IA no site: Edge Function `supabase/fort-ai.ts` (Gemini; segredo `GEMINI_API_KEY`).

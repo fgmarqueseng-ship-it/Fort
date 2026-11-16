@@ -28,8 +28,8 @@ function afterRender(){applyTheme();const p=myPrefs();const sig=[p.bg?p.bg.lengt
  const b=document.body;const root=document.documentElement;
  if(p.bg){b.classList.add('hasbg');b.style.setProperty('--bgimg',`url("${p.bg}")`);b.style.setProperty('--bgdim',String((p.bgDim??70)/100))}else{b.classList.remove('hasbg');b.style.removeProperty('--bgimg')}
  const ac=ACCENTS.find(a=>a.v===p.accent)||ACCENTS[0];root.style.setProperty('--accent',ac.v);root.style.setProperty('--accent-ink',ac.ink);
- b.classList.toggle('nomark',!!p.noMark||!!p.bg)}
-const ACCENTS=[{v:'#9b8cff',ink:'#17132f',l:'Lilás'},{v:'#3ccf91',ink:'#06261a',l:'Verde'},{v:'#5aa9ff',ink:'#06203d',l:'Azul'},{v:'#efb34d',ink:'#2e1f04',l:'Dourado'},{v:'#f37a72',ink:'#3a0c08',l:'Coral'},{v:'#e07ad0',ink:'#330a2c',l:'Rosa'}];
+ b.classList.toggle('nomark',p.noMark!==false||!!p.bg)}
+const ACCENTS=[{v:'#22c55e',ink:'#04230f',l:'Verde Fort'},{v:'#9b8cff',ink:'#17132f',l:'Lilás'},{v:'#3ccf91',ink:'#06261a',l:'Verde-água'},{v:'#5aa9ff',ink:'#06203d',l:'Azul'},{v:'#efb34d',ink:'#2e1f04',l:'Dourado'},{v:'#f37a72',ink:'#3a0c08',l:'Coral'},{v:'#e07ad0',ink:'#330a2c',l:'Rosa'}];
 
 function imgToDataUrl(file,maxW,maxH,q,square){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{let w=im.width,h=im.height,sx=0,sy=0,sw=w,sh=h;
  if(square){const m=Math.min(w,h);sx=(w-m)/2;sy=(h-m)/2;sw=sh=m;w=h=Math.min(maxW,m)}else{const k=Math.min(1,maxW/w,maxH/h);w=Math.round(w*k);h=Math.round(h*k)}
@@ -401,7 +401,7 @@ V.ajustes=()=>{const p=myPrefs();const mem=ui.members;
  ${p.bg?`<label class="fl mt"><span>Escurecer a imagem (${p.bgDim??70}%)</span><input type="range" min="20" max="92" value="${p.bgDim??70}" data-chg="bgdim" style="padding:0"></label>`:''}
  <div class="fl mt"><span>Cor de destaque</span><div class="swatches">${ACCENTS.map(a=>`<label title="${a.l}"><input type="radio" name="accent" value="${a.v}" data-chg="accent" ${(p.accent||ACCENTS[0].v)===a.v?'checked':''}><span style="background:${a.v}"></span></label>`).join('')}</div></div>
  <div class="muted mt" style="font-size:13px">Foto, fundo e cor valem só para você; cada pessoa escolhe os seus. Os ícones das contas e cartões se trocam no cadastro de cada um.</div></div>
- ${sec('Preferências')}<div class="list"><label class="row sw" style="cursor:pointer"><span>Ocultar valores na tela</span><input type="checkbox" data-chg="hide" ${hideVals?'checked':''}><i></i></label><label class="row sw" style="cursor:pointer"><span>Marca d'água “$” no fundo</span><input type="checkbox" data-chg="mark" ${p.noMark?'':'checked'}><i></i></label><button class="row" data-act="rates"><div class="t"><b>Taxas e indicadores</b><small>Selic, CDI, IPCA e TR das projeções</small></div><span class="mut">${I.right}</span></button><button class="row" data-act="seedcats"><div class="t"><b>Recriar categorias padrão</b><small>Adiciona só as que estiverem faltando</small></div></button></div>
+ ${sec('Preferências')}<div class="list"><label class="row sw" style="cursor:pointer"><span>Ocultar valores na tela</span><input type="checkbox" data-chg="hide" ${hideVals?'checked':''}><i></i></label><label class="row sw" style="cursor:pointer"><span>Marca d'água “$” no fundo</span><input type="checkbox" data-chg="mark" ${p.noMark===false?'checked':''}><i></i></label><button class="row" data-act="rates"><div class="t"><b>Taxas e indicadores</b><small>Selic, CDI, IPCA e TR das projeções</small></div><span class="mut">${I.right}</span></button><button class="row" data-act="seedcats"><div class="t"><b>Recriar categorias padrão</b><small>Adiciona só as que estiverem faltando</small></div></button></div>
  </div><div>
  ${alertsSection()}
  ${extraSettings()}
