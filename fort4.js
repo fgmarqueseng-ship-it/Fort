@@ -8,14 +8,16 @@
 /* =============== sobra acumulada =============== */
 // Resultado do mês (receitas − despesas) que passa para o mês seguinte.
 // Positivo = sobra; negativo = déficit (o que normalmente vira cheque especial).
-const carryFrom=()=>appCfg().carryFrom||'';
-let carryInit=false;
-function ensureCarryFrom(){if(carryFrom()||carryInit||typeof mode==='undefined'||mode!=='db'||!S.settings)return;carryInit=true;setTimeout(()=>{if(!carryFrom())saveApp({carryFrom:curYm()})},1500)}
+// Por padrão acumula desde o mês do primeiro lançamento. Só usa outro mês se a pessoa escolheu em "Ajustar".
+let firstYmKey='',firstYmVal='';
+function firstTxYm(){const k=S.tx.length+'|'+(S.tx[S.tx.length-1]?.id||'');if(k===firstYmKey)return firstYmVal;let m='';for(const t of S.tx){const y=ymOf(t.date||'');if(/^\d{4}-\d{2}$/.test(y)&&y>='2000-01'&&(!m||y<m))m=y}firstYmKey=k;firstYmVal=m;return m}
+const carryFrom=()=>{const c=appCfg();return (c.carryUser&&c.carryFrom)||firstTxYm()||curYm()};
+function ensureCarryFrom(){}
 const carryCache=new Map();let carryKey='';
 function monthCarry(ym){ensureCarryFrom();const from=carryFrom()||curYm();if(appCfg().carryOff||ym<=from)return 0;
  const k=S.tx.length+'|'+from+'|'+(S.tx[S.tx.length-1]?.id||'');if(k!==carryKey){carryKey=k;carryCache.clear()}
  if(carryCache.has(ym))return carryCache.get(ym);
- let c=0,m=from,g=0;while(m<ym&&g++<240){c+=monthSummary(m).bal;m=addMonths(m,1)}c=r2(c);carryCache.set(ym,c);return c}
+ let c=0,m=from,g=0;while(m<ym&&g++<600){c+=monthSummary(m).bal;m=addMonths(m,1)}c=r2(c);carryCache.set(ym,c);return c}
 function heroCarry(ym,ms){if(appCfg().carryOff)return `<button class="click" data-act="go" data-go="orcamento"><small>Balanço</small><b class="${ms.bal<0?'neg':'pos'}">${money(ms.bal)}</b></button>`;
  const c=monthCarry(ym),fin=r2(c+ms.bal);
  return `<button class="click" data-act="go" data-go="orcamento" title="Sobra do mês anterior ${moneyRaw(c)} + receitas − despesas"><small>${fin<0?'Déficit':'Sobra'} do mês</small><b class="${fin<0?'neg':'pos'}">${money(fin)}</b>${c?`<em class="hero-carry">${c<0?'déficit':'sobra'} anterior ${money(c)}</em>`:''}</button>`}
@@ -51,10 +53,10 @@ function budgetAlerts(){const ym=curYm();return S.budgets.map(b=>{const c=byId('
 function budgetMini(ym){if(!S.budgets.length)return '';const rows=S.budgets.map(b=>{const c=byId('categories',b.categoryId);if(!c)return null;const i=budInfo(b,ym);return{c,i}}).filter(Boolean).sort((a,b)=>b.i.p-a.i.p).slice(0,4);
  return sec('Orçamento','orcamento')+`<div class="list">${rows.map(({c,i})=>`<div class="row">${ib(c.emoji,c.color,'sm')}<div class="t"><b>${esc(c.name)}</b><div class="bar" style="--c:${i.p>1?'var(--out)':i.p>.8?'var(--warn)':'var(--in)'}"><i style="width:${Math.min(100,i.p*100)}%"></i></div></div><div class="amt"><b>${money(i.sp)}</b><small>de ${money(i.avail)}</small></div></div>`).join('')}</div>`}
 
-function formCarry(){const c=appCfg();openForm({title:'Sobra do mês',values:{on:!c.carryOff,from:c.carryFrom||curYm()},
+function formCarry(){const c=appCfg();openForm({title:'Sobra do mês',values:{on:!c.carryOff,from:carryFrom()},
  intro:'<div class="muted" style="font-size:13.5px">O resultado de cada mês (receitas − despesas) passa para o mês seguinte: a sobra aumenta o próximo mês e o déficit diminui.</div>',
- fields:[{k:'on',label:'Acumular a sobra (e o déficit) de um mês para o outro',type:'toggle'},{k:'from',label:'Começar a acumular em',type:'month',hint:'Os meses anteriores a este não entram na conta.'}],
- onSave:v=>{saveApp({carryOff:!v.on,carryFrom:v.from||curYm()});carryKey='';toast('Ajuste salvo')}})}
+ fields:[{k:'on',label:'Acumular a sobra (e o déficit) de um mês para o outro',type:'toggle'},{k:'from',label:'Começar a acumular em',type:'month',hint:'Padrão: mês do seu primeiro lançamento. Os meses anteriores a este não entram na conta.'}],
+ onSave:v=>{const auto=firstTxYm()||curYm();saveApp({carryOff:!v.on,carryFrom:v.from||auto,carryUser:!!v.from&&v.from!==auto});carryKey='';toast('Ajuste salvo')}})}
 
 /* =============== resumo de Transações com a sobra =============== */
 const _vTx=V.transacoes;
