@@ -61,7 +61,6 @@ button.row:hover,.row.click:hover{background:#1a1f23}
 .ib{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:19px;background:color-mix(in srgb,var(--c) 22%,transparent);flex-shrink:0}
 .ib.sm{width:34px;height:34px;font-size:16px;border-radius:10px}
 .pastelogo{flex:1;min-width:150px;font-size:13px;padding:8px 10px}
-body::after{content:'$';position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-12deg);font:800 min(78vh,95vw)/1 Manrope,system-ui,sans-serif;color:#22c55e;opacity:.05;pointer-events:none;z-index:45;user-select:none}
 .fileov{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;z-index:2}
 label:has(>.fileov){position:relative;overflow:hidden}
 .av.img{background:#fff;overflow:hidden;padding:0}.av.img img{width:100%;height:100%;object-fit:cover;display:block}
@@ -204,7 +203,6 @@ body.hasbg .shell{background:transparent}
 body.hasbg .card,body.hasbg .list{background:rgba(22,26,29,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 body.hasbg .side{background:rgba(17,21,24,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 body.hasbg .bottom{background:rgba(23,28,32,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-body.nomark::after{display:none}
 .tags{display:flex;gap:6px;flex-wrap:wrap}
 
 /* ================= KPIs e taxas ================= */
@@ -346,7 +344,6 @@ body.light .side{background:#fbfcfd}
 body.light .bottom{background:#ffffff}
 body.light .nav-i:hover,body.light button.row:hover,body.light .row.click:hover,body.light .tb tr.click:hover td,body.light .sp-me:hover{background:#f0f2f5}
 body.light #toast{background:#1f262c;color:#fff}
-body.light::after{color:#16a34a;opacity:.04}
 body.light .chart line{stroke:#e6e9ed}
 body.light svg text[style*="eef1f3"]{fill:#151a1e!important}
 body.light .banner{color:#8a5a00;background:#fff6e0;border-color:#f3d48c}
