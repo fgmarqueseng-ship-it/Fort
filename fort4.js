@@ -229,12 +229,19 @@ Object.assign(A,{
 const _go=go;go=function(v){if(v!=='transacoes')ui.sel=null;return _go(v)};
 
 /* =============== IA no site: Gemini pela função fort-ai do Supabase =============== */
-async function aiCall(payload){if(!SB||!SB.functions)throw Object.assign(new Error('offline'),{code:'offline'});
+async function aiCall(payload,again){if(!SB||!SB.functions)throw Object.assign(new Error('offline'),{code:'offline'});
+ if(!navigator.onLine)throw Object.assign(new Error('offline'),{code:'offline'});
  const{data,error}=await SB.functions.invoke('fort-ai',{body:payload});
- if(error){let st=error.context?.status||0,det={};try{det=await error.context.json()}catch(e){}
-  if(st===404||det.error==='setup'){ui.aiOff=ui.imgOff='A IA ainda não foi instalada no Supabase. Veja em Ajustes como ligar (é grátis).';throw Object.assign(new Error('setup'),{code:'setup'})}
+ if(error){const ctx=error.context;let st=(ctx&&typeof ctx.status==='number')?ctx.status:0,det={};try{if(ctx&&ctx.json)det=await ctx.json()}catch(e){}
+  if(st===404||det.error==='setup'||det.code==='NOT_FOUND'){ui.aiOff=ui.imgOff='A IA ainda não foi instalada no Supabase. Veja abaixo como ligar (é grátis).';throw Object.assign(new Error('setup'),{code:'setup'})}
   if(st===429)throw Object.assign(new Error('limite'),{code:'rate_limited'});
-  throw Object.assign(new Error(det.detail||det.error||error.message),{code:'ai_error'})}
+  if((st===401||st===403)&&!again){const ok=await reauth();if(ok)return aiCall(payload,true)}
+  if(st===403)throw Object.assign(new Error('este login não tem acesso à IA do Fort (entre de novo com o e-mail liberado)'),{code:'ai_error'});
+  if(st===401)throw Object.assign(new Error('sua sessão expirou, saia e entre de novo'),{code:'ai_error'});
+  if(!st){// nem chegou resposta: ou a função não existe no Supabase, ou caiu a conexão
+   if(!stale){ui.aiOff=ui.imgOff='Não encontrei a IA no Supabase. Veja abaixo como ligar (é grátis).';throw Object.assign(new Error('setup'),{code:'setup'})}
+   throw Object.assign(new Error('offline'),{code:'offline'})}
+  throw Object.assign(new Error(det.detail||det.error||error.message||('erro '+st)),{code:'ai_error'})}
  return data||{}}
 function aiMerge(messages){const out=[];for(const m of messages){const role=m.role==='assistant'?'assistant':'user';const c=String(m.content||'');if(out.length&&out[out.length-1].role===role)out[out.length-1].content+='\n\n'+c;else out.push({role,content:c})}return out}
 if(!SAMPLE){
@@ -246,3 +253,11 @@ if(!SAMPLE){
  gem.limits=async()=>({images:true});
  SAMPLE=gem;
 }
+
+Object.assign(A,{syncretry:()=>{toast('Tentando conectar…');try{DB&&DB.reload&&DB.reload()}catch(e){}}});
+function aiSetupHelp(){const sb='https://supabase.com/dashboard/project/'+String(CFG.url||'').replace(/^https:\/\/|\.supabase\.co.*$/g,'');
+ return `<div class="card mb" style="line-height:1.6;font-size:14px"><b>Como ligar a IA (uma vez só, grátis)</b><br>
+ 1. Pegue uma chave grátis do Google em <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> (<b>Create API key</b>) e copie.<br>
+ 2. No Supabase, abra <a href="${sb}/functions/secrets" target="_blank" rel="noopener">Edge Functions › Secrets</a>, crie o segredo <b>GEMINI_API_KEY</b> e cole a chave.<br>
+ 3. Abra <a href="${sb}/functions" target="_blank" rel="noopener">Edge Functions</a> › <b>Deploy a new function</b> › <b>Via Editor</b>, dê o nome <b>fort-ai</b>, apague o exemplo e cole o código do arquivo <a href="https://github.com/fgmarqueseng-ship-it/Fort/blob/main/supabase/fort-ai.ts" target="_blank" rel="noopener">supabase/fort-ai.ts</a>. Toque em <b>Deploy</b>.<br>
+ 4. Feche e abra o Fort de novo.</div>`}
