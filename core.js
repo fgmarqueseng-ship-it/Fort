@@ -10,7 +10,7 @@ let hideVals=false;try{hideVals=localStorage.getItem('fort.hide')==='1'}catch(e)
 const money=v=>hideVals?'R$ •••••':BRL.format(+v||0).replace(/ /g,' ');
 const moneyRaw=v=>BRL.format(+v||0).replace(/ /g,' ');
 const fmtNum=v=>(+v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-const parseMoney=s=>{s=String(s??'').trim().replace(/[R$\s]/g,'');if(!s)return 0;if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');const v=parseFloat(s);return isNaN(v)?0:v};
+const parseMoney=s=>{s=String(s??'').trim().replace(/[R$\s]/g,'').replace(/−/g,'-');if(!s)return 0;if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');const v=parseFloat(s);return isNaN(v)?0:v};
 const pad=n=>String(n).padStart(2,'0');
 const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const today=()=>ymd(new Date());
@@ -456,7 +456,7 @@ function logoFromFile(f,id){const r=new FileReader();r.onload=()=>{const im=new 
 
 function fieldHtml(f,v){const id='f_'+f.k;const hint=f.hint?`<em>${esc(f.hint)}</em>`:'';
  switch(f.type){
-  case 'money':return `<label class="fl"><span>${esc(f.label)}</span><input id="${id}" inputmode="decimal" value="${v!=null&&v!==''?fmtNum(v):''}" placeholder="0,00" ${f.focus?'autofocus':''}>${hint}</label>`;
+  case 'money':return `<label class="fl"><span>${esc(f.label)}</span><input id="${id}" data-money inputmode="decimal" value="${v!=null&&v!==''?fmtNum(v):''}" placeholder="0,00" ${f.focus?'autofocus':''}>${hint}</label>`;
   case 'number':return `<label class="fl"><span>${esc(f.label)}</span><input id="${id}" type="number" inputmode="numeric" min="${f.min??''}" max="${f.max??''}" value="${esc(v??'')}">${hint}</label>`;
   case 'date':return `<label class="fl"><span>${esc(f.label)}</span><input id="${id}" type="date" value="${esc(v||'')}">${hint}</label>`;
   case 'month':return `<label class="fl"><span>${esc(f.label)}</span><input id="${id}" type="month" value="${esc(v||'')}">${hint}</label>`;
@@ -502,7 +502,7 @@ function renderTx(){const d=draft,isNew=!d.id;const isCard=d.src.startsWith('c:'
  const keepId=(document.activeElement&&$('#modal').contains(document.activeElement)&&document.activeElement.id)||'';const keepSc=$('#modal .sheet-bd')?.scrollTop||0;
  showModal(`<div class="sheet-hd"><h2>${title}</h2><button class="icon-btn" data-act="close" aria-label="Fechar">${I.x}</button></div><div class="sheet-bd">
  <div class="seg">${[['out','Despesa'],['in','Receita'],['transfer','Transferência']].map(([k,l])=>`<button class="${d.kind===k?'on '+k:''}" data-act="txkind" data-k="${k}">${l}</button>`).join('')}</div>
- <div class="amtrow">${curSelect(d)}<input id="tx_amt" class="amount-in ${d.kind==='in'?'pos':d.kind==='out'?'neg':''}" inputmode="decimal" placeholder="${curPh(d.cur)}" value="${esc(d.amount)}" autofocus aria-label="Valor" data-inp="txamt"></div>${fxBox(d)}
+ <div class="amtrow">${curSelect(d)}<input id="tx_amt" data-money class="amount-in ${d.kind==='in'?'pos':d.kind==='out'?'neg':''}" inputmode="decimal" placeholder="${curPh(d.cur)}" value="${esc(d.amount)}" autofocus aria-label="Valor" data-inp="txamt"></div>${fxBox(d)}
  ${d.kind!=='transfer'?`<label class="fl"><span>Descrição</span><input id="tx_desc" value="${esc(d.desc)}" placeholder="${d.kind==='in'?'Ex.: Salário':'Ex.: Mercado do mês'}"></label>`:''}
  <div class="grid2"><label class="fl"><span id="tx_datelbl">${txDateLabel(d)}</span><input id="tx_date" type="date" value="${esc(d.date)}" data-chg="txdate"></label>
  <label class="fl"><span>${d.kind==='transfer'?'De':d.kind==='out'?'Conta ou cartão':'Conta'}</span><select id="tx_src" data-chg="txsrc2">${accOpts}${cardOpts?`<optgroup label="Cartões">${cardOpts}</optgroup>`:''}</select>${invHint}</label></div>

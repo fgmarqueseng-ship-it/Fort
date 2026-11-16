@@ -1,6 +1,6 @@
 // Service worker simples: permite instalar o Fort e abre a última versão quando há internet.
-const CACHE='fort-v29';
-const ASSETS=['./','index.html','style.css?v=29','config.js?v=29','core.js?v=29','fort.js?v=29','fort2.js?v=29','pdfparse.js?v=29','fort3.js?v=29','cupom.js?v=29','fort4.js?v=29','fort5.js?v=29','boot.js?v=29','manifest.json','icons/icon-192.png','vendor/supabase.js'];
+const CACHE='fort-v30';
+const ASSETS=['./','index.html','style.css?v=30','config.js?v=30','core.js?v=30','fort.js?v=30','fort2.js?v=30','pdfparse.js?v=30','fort3.js?v=30','cupom.js?v=30','fort4.js?v=30','fort5.js?v=30','boot.js?v=30','manifest.json','icons/icon-192.png','vendor/supabase.js'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).catch(()=>{}));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;

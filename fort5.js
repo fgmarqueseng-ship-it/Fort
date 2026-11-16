@@ -94,3 +94,16 @@ async function zerarApp(){if((($('#zr_txt')?.value)||'').trim().toUpperCase()!==
 
 Object.assign(A,{zerar:()=>zerarDialog(),zerarok:()=>zerarApp()});
 ui.rp.kind='both';
+
+/* =============== campo de valor estilo caixa eletrônico =============== */
+// Digita só números: 1 → 0,01 · 12 → 0,12 · 1234 → 12,34 · 123456 → 1.234,56
+// Um sinal de menos (− ou -) em qualquer posição deixa o valor negativo.
+function maskMoney(el){const raw=String(el.value||'');const neg=/[-−]/.test(raw);const dg=raw.replace(/\D/g,'').replace(/^0+/,'');
+ if(!dg){el.value=neg?'−':'';return}
+ const c=dg.padStart(3,'0');const int=c.slice(0,-2).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+ el.value=(neg?'−':'')+int+','+c.slice(-2);
+ try{const n=el.value.length;el.setSelectionRange(n,n)}catch(e){}}
+// valor que veio pronto (ex.: 123.45 ou 50) vira 123,45 / 50,00 ao tocar no campo
+function normMoney(el){const v=String(el.value||'').trim();if(!v||/,\d{2}$/.test(v))return;const n=parseMoney(v.replace('−','-'));if(!isNaN(n)&&v.replace(/[^\d]/g,''))el.value=(n<0?'−':'')+fmtNum(Math.abs(n))}
+document.addEventListener('input',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-money]'))maskMoney(el)},true);
+document.addEventListener('focusin',e=>{const el=e.target;if(el&&el.matches&&el.matches('input[data-money]')){normMoney(el);setTimeout(()=>{try{const n=el.value.length;el.setSelectionRange(n,n)}catch(x){}},0)}},true);
