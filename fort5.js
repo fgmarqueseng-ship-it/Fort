@@ -32,6 +32,17 @@ function pendStrip(rp,inI,outI){const po=outI.filter(isPend),pi=inI.filter(isPen
  if(rp.kind!=='out')cells.push(`<div><small>Receitas a receber</small><b class="warn">${money(tpi)}</b><small class="muted">${pi.length} lançamento${pi.length===1?'':'s'}</small></div>`);
  if(rp.kind==='out'&&cardOut)cells.push(`<div><small>No cartão (vai na fatura)</small><b>${money(cardOut)}</b></div>`);
  return `<div class="grid3 pend mt">${cells.join('')}</div>`}
+// quadro de saldo final: recebidas + a receber − pagas − a pagar (− cartão)
+function saldoParts(inI,outI){const rec=sum(inI.filter(t=>!isPend(t)),t=>t.amount),arec=sum(inI.filter(isPend),t=>t.amount);
+ const pag=sum(outI.filter(t=>!t.cardId&&!isPend(t)),t=>t.amount),apag=sum(outI.filter(isPend),t=>t.amount),card=sum(outI.filter(t=>t.cardId),t=>t.amount);
+ return{rec,arec,pag,apag,card,real:r2(rec-pag),fin:r2(rec+arec-pag-apag-card)}}
+function saldoCard(inI,outI){const x=saldoParts(inI,outI);const ln=(l,v,cls,sg)=>`<div class="sw" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${l}</span><b class="${cls}">${sg}${money(v)}</b></div>`;
+ return `${sec('Saldo final do período')}<div class="card mb">
+ ${ln('Receitas recebidas',x.rec,'pos','+ ')}${ln('Receitas a receber',x.arec,'pos','+ ')}${ln('Despesas pagas',x.pag,'neg','− ')}${ln('Despesas a pagar',x.apag,'neg','− ')}${x.card?ln('Compras no cartão (faturas)',x.card,'neg','− '):''}
+ <div class="sw" style="padding:10px 0 2px"><b style="font-size:16px">Saldo final</b><b class="${x.fin<0?'neg':'pos'}" style="font-size:22px">${money(x.fin)}</b></div>
+ <small class="muted">Saldo até agora (só o que já foi recebido e pago): <b class="${x.real<0?'neg':'pos'}">${money(x.real)}</b></small></div>`}
+function saldoPdf(inI,outI){const x=saldoParts(inI,outI);const r=(l,v,c,sg)=>`<tr><td>${l}</td><td class="r ${c}">${sg}${pm$(v)}</td></tr>`;
+ return `<h3>Saldo final do período</h3>`+ptable(['Item','Valor'],[r('Receitas recebidas',x.rec,'pos','+ '),r('Receitas a receber',x.arec,'pos','+ '),r('Despesas pagas',x.pag,'neg','− '),r('Despesas a pagar',x.apag,'neg','− '),...(x.card?[r('Compras no cartão (faturas)',x.card,'neg','− ')]:[]),`<tr><td class="mut">Saldo até agora (recebido − pago)</td><td class="r mut">${pm$(x.real)}</td></tr>`],`<tr><td>Saldo final</td><td class="r ${x.fin<0?'neg':'pos'}">${pm$(x.fin)}</td></tr>`)}
 const rpPct=(v,t)=>t?(v/t*100).toFixed(1).replace('.',','):'0';
 const catList=(cats,tot,cls)=>cats.map(g=>`<div class="row">${ib(g.cat.emoji,g.cat.color,'sm')}<div class="t"><b>${esc(g.cat.name)}</b><div class="bar" style="--c:${g.cat.color}"><i style="width:${tot?g.total/tot*100:0}%"></i></div></div><div class="amt"><b class="${cls||''}">${money(g.total)}</b><small>${rpPct(g.total,tot)}%</small></div></div>`).join('');
 
@@ -52,6 +63,7 @@ V.relatorio=()=>{const rp=ui.rp;const{p,items}=rpItems();ui.rpItems=items;const 
   :`${sec('Por categoria')}<div class="list">${catList(byCat(items),rp.kind==='in'?ti:to)||'<div class="empty">Nada encontrado.</div>'}</div>`;
  return header('Relatório personalizado',{back:'mais',month:rp.range!=='custom'})+`<div class="filters">${sel('range',[['custom','Escolher datas (De / Até)'],['1','Mês selecionado'],['3','Últimos 3 meses'],['6','Últimos 6 meses'],['12','Últimos 12 meses'],['ano','Ano de '+ui.month.slice(0,4)]])}${dates}${sel('kind',[['both','Receitas e despesas'],['out','Só despesas'],['in','Só receitas']])}${sel('src',[['','Todas as contas'],...S.accounts.map(a=>['a:'+a.id,a.name]),...S.cards.map(c=>['c:'+c.id,'💳 '+c.name])])}${sel('cat',[['','Todas as categorias'],...catOpts])}${sel('tag',[['','Todas as tags'],...S.tags.map(g=>[g.id,g.name])])}${sel('st',[['','Pagas e a pagar'],['pagar','Só a pagar / a receber'],['pagas','Só pagas / recebidas']])}</div>
  ${sumCard}
+ ${rp.kind==='both'?saldoCard(inI,outI):''}
  <div class="home"><div>${cats}</div>
  <div>${pendSec}${sec('Lançamentos')}<div class="list">${items.slice(0,300).map(t=>txRow(t,{date:true,check:false})).join('')||'<div class="empty">Nada encontrado.</div>'}</div>${items.length>300?'<div class="muted mt">Mostrando 300 de '+items.length+'. Exporte para ver todos.</div>':''}</div></div>`};
 
@@ -71,7 +83,7 @@ function pdfReport(){const rp=ui.rp;const{p,items:its}=rpItems();const items=[..
  const inMonth=(arr,m)=>sum(arr.filter(t=>ymOf(t.date)===m),t=>t.amount);
  let body;
  if(rp.kind==='both'){
-  body=pkpis([['Receitas',pm$(ti),'pos'],['Despesas',pm$(to),'neg'],['Saldo',pm$(ti-to),ti-to<0?'neg':'pos'],['Despesas a pagar',pm$(tpo),'neg'],['Receitas a receber',pm$(tpi),'pos'],['Lançamentos',String(items.length)]])+pendBlock+
+  body=pkpis([['Receitas',pm$(ti),'pos'],['Despesas',pm$(to),'neg'],['Saldo',pm$(ti-to),ti-to<0?'neg':'pos'],['Despesas a pagar',pm$(tpo),'neg'],['Receitas a receber',pm$(tpi),'pos'],['Lançamentos',String(items.length)]])+saldoPdf(inI,outI)+pendBlock+
    `<h3>Receitas por categoria</h3>`+catTable(inI,ti)+`<h3>Despesas por categoria</h3>`+catTable(outI,to)+
    `<h3>Por mês</h3>`+ptable(['Mês','Receitas','Despesas','Saldo'],p.ms.map(m=>{const a=inMonth(inI,m),b=inMonth(outI,m);return `<tr><td>${monthLabel(m)}</td><td class="r pos">${pm$(a)}</td><td class="r neg">${pm$(b)}</td><td class="r ${a-b<0?'neg':''}">${pm$(a-b)}</td></tr>`}),`<tr><td>Total</td><td class="r">${pm$(ti)}</td><td class="r">${pm$(to)}</td><td class="r">${pm$(ti-to)}</td></tr>`);
  }else{const tot=rp.kind==='in'?ti:to;const cats=byCat(items);

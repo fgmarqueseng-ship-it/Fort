@@ -195,7 +195,7 @@ function txRow(t,opt={}){const c=catOf(t);const bits=[];if(opt.date)bits.push(fm
  return `<div class="row click" data-act="tx" data-id="${t.id}">${ib(c.emoji,c.color)}<div class="t"><b>${esc(txTitle(t))}</b><small>${esc(bits.join(' · '))}</small></div><div class="amt"><b class="${amtCls(t)}">${signed(t)}</b>${!t.paid&&!t.cardId&&t.kind!=='invpay'?'<small class="warn">pendente</small>':''}</div>${opt.check!==false?chk:''}</div>`}
 
 /* ================= estado de tela ================= */
-const ui={view:'inicio',month:ymOf(today()),txf:'all',txq:'',txsrc:'',ana:'mes',anaKind:'out',exp:'',catTab:'out',cardId:'',cardInv:'',range:6,rp:{range:'3',kind:'out',src:'',cat:'',tag:''},cmp:'',chat:[],projVar:true,parcTab:'ativos'};
+const ui={view:'inicio',month:ymOf(today()),txf:'all',txq:'',txsrc:'',ana:'mes',anaKind:'out',exp:'',catTab:'out',cardId:'',cardInv:'',range:6,rp:{range:'3',kind:'both',src:'',cat:'',tag:''},cmp:'',chat:[],projVar:true,parcTab:'ativos'};
 const MORE=[
  ['Dia a dia',[['contas','Contas','👛','#4fb3a9'],['cartoes','Cartões','💳','#4fb3a9'],['recorrencias','Recorrências','🔁','#4fb3a9'],['parcelamentos','Parcelamentos','🧩','#4fb3a9'],['assinaturas','Assinaturas','📺','#4fb3a9'],['cupom','Ler cupom','🧾','#4fb3a9'],['comprovante','Foto de comprovante','📷','#4fb3a9'],['caixa','Caixa de entrada','📥','#4fb3a9'],['casal','Divisão do casal','💞','#e07a9b']]],
  ['Planejar',[['orcamento','Orçamento','🥧','#3ccf91'],['metas','Metas e caixinhas','🎯','#3ccf91'],['reserva','Reserva de emergência','🛟','#3ccf91'],['calendario','Calendário','📅','#3ccf91'],['projecoes','Projeção longo prazo','🔭','#3ccf91']]],
